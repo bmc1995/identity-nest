@@ -4,10 +4,11 @@ import { AppService } from './app.service';
 import { DiscoveryController } from './controllers/discovery/discovery.controller';
 import { JwksService } from './services/jwks/jwks.service';
 import { JwksController } from './controllers/jwks/jwks.controller';
+import { JwtService } from './services/jwt/jwt.service';
 
 @Module({
   imports: [],
   controllers: [AppController, DiscoveryController, JwksController],
-  providers: [AppService, JwksService],
+  providers: [AppService, JwksService, JwtService],
 })
 export class AppModule {}
