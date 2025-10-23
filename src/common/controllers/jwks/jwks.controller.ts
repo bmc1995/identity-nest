@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { JwksService } from '../../common/crypto/jwks/jwks.service';
+import { JwksService } from '../../crypto/jwks/jwks.service';
 
 @Controller('oidc')
 export class JwksController {
