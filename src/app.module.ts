@@ -9,10 +9,11 @@ import { OidcModule } from './modules/oidc/oidc.module';
 import { ClientModule } from './modules/client/client.module';
 import { UserModule } from './modules/user/user.module';
 import { StoreModule } from './modules/store/store.module';
+import { KeygenService } from './common/crypto/keygen/keygen.service';
 
 @Module({
   imports: [OidcModule, ClientModule, UserModule, StoreModule],
   controllers: [AppController, DiscoveryController, JwksController],
-  providers: [AppService, JwksService, JwtService],
+  providers: [AppService, JwksService, JwtService, KeygenService],
 })
 export class AppModule {}
