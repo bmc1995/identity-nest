@@ -1,0 +1,58 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
+import { Client } from './client.entity.js';
+import { Account } from './account.entity.js';
+import { Grant } from './grant.entity.js';
+
+@Entity('refresh_tokens')
+export class RefreshToken {
+  @PrimaryColumn({ type: 'text' })
+  value!: string; // opaque
+
+  @Index()
+  @Column({ type: 'uuid', default: () => 'uuid_generate_v4()' })
+  jti!: string;
+
+  @ManyToOne(() => Client, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'client_id' })
+  @Index()
+  client!: Client;
+
+  @ManyToOne(() => Account, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'account_id' })
+  @Index()
+  account!: Account;
+
+  @ManyToOne(() => Grant, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'grant_id' })
+  grant!: Grant | null;
+
+  @Column({ type: 'text' })
+  scope!: string;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt!: Date;
+
+  @Index()
+  @Column({ type: 'timestamptz' })
+  expiresAt!: Date;
+
+  @Column({ type: 'uuid', nullable: true })
+  rotatedFrom!: string | null; // previous RT jti
+
+  @Column({ type: 'timestamptz', nullable: true })
+  rotatedAt!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  revokedAt!: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  reuseDetected!: boolean;
+}
