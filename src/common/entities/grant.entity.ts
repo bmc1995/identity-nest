@@ -11,7 +11,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Account } from './account.entity';
-import { Client } from './client.entity';
+import { ClientApplication } from './clientApplication.entity';
 import { AccessToken } from './accessToken.entity.js';
 import { RefreshToken } from './refreshToken.entity.js';
 
@@ -26,10 +26,10 @@ export class Grant {
   @Index()
   account!: Account;
 
-  @ManyToOne(() => Client, (c) => c.grants, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ClientApplication, (c) => c.grantTypes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'client_id' })
   @Index()
-  client!: Client;
+  client!: ClientApplication;
 
   @Column({ type: 'text' })
   scope!: string; // space-delimited

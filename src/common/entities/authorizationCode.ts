@@ -7,7 +7,7 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { Client } from './client.entity';
+import { ClientApplication } from './clientApplication.entity';
 import { Account } from './account.entity';
 import { Grant } from './grant.entity';
 import { PkceMethod } from '../enums/PKCEMethod.enum';
@@ -17,10 +17,10 @@ export class AuthorizationCode {
   @PrimaryColumn({ type: 'text' })
   code!: string; // opaque
 
-  @ManyToOne(() => Client, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ClientApplication, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'client_id' })
   @Index()
-  client!: Client;
+  client!: ClientApplication;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'account_id' })

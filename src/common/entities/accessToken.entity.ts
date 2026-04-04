@@ -7,7 +7,7 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { Client } from './client.entity.js';
+import { ClientApplication } from './clientApplication.entity.js';
 import { Account } from './account.entity.js';
 import { Grant } from './grant.entity.js';
 
@@ -20,10 +20,10 @@ export class AccessToken {
   @Column({ type: 'uuid', default: () => 'uuid_generate_v4()' })
   jti!: string;
 
-  @ManyToOne(() => Client, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ClientApplication, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'client_id' })
   @Index()
-  client!: Client;
+  client!: ClientApplication;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'account_id' })
