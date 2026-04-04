@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { Tenant } from './tenant.entity';
 import { User } from './user.entity';
-import { Application } from './application.entity';
+import { ClientApplication } from './clientApplication.entity';
 
 @Entity('consent_records')
 @Unique('consent_per_app', ['user', 'application'])
@@ -30,10 +30,10 @@ export class ConsentRecord {
   @Index()
   user!: User;
 
-  @ManyToOne(() => Application, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ClientApplication, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'application_id' })
   @Index()
-  application!: Application;
+  clientApplication!: ClientApplication;
 
   // Consent details
   @Column({ type: 'text' })

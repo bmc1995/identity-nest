@@ -14,7 +14,7 @@ import { Tenant } from './tenant.entity';
 @Entity('applications')
 @Unique('app_client_id_unique', ['tenant', 'clientId'])
 @Index('idx_tenant_apps', ['tenant', 'status'])
-export class Application {
+export class ClientApplication {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 

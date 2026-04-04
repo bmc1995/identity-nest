@@ -2,7 +2,7 @@
 export { AccessToken } from './accessToken.entity';
 export { Account } from './account.entity';
 export { AuthorizationCode } from './authorizationCode';
-export { Client } from './client.entity';
+// export { Client } from './client.entity';
 export { Grant } from './grant.entity';
 export { Interaction } from './interaction.entity';
 export { RefreshToken } from './refreshToken.entity';
@@ -12,7 +12,7 @@ export { Tenant } from './tenant.entity';
 export { User } from './user.entity';
 export { Credential } from './credential.entity';
 export { Session } from './session.entity';
-export { Application } from './application.entity';
+export { ClientApplication } from './clientApplication.entity';
 export { ConsentRecord } from './consentRecord.entity';
 export { Policy } from './policy.entity';
 export { AuditLog } from './auditLog.entity';
