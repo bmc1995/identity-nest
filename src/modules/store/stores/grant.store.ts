@@ -64,6 +64,16 @@ export class GrantStore {
     return this.grants.get(id);
   }
 
+  findByAccount(accountId: string): StoredGrant[] {
+    const grants: StoredGrant[] = [];
+    for (const grant of this.grants.values()) {
+      if (grant.accountId === accountId && !grant.revokedAt) {
+        grants.push(grant);
+      }
+    }
+    return grants;
+  }
+
   findByAccountAndClient(
     accountId: string,
     clientId: string,

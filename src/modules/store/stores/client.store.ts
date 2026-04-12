@@ -35,6 +35,26 @@ export class ClientStore implements OnModuleInit {
       tokenEndpointAuthMethod: 'client_secret_basic',
       requirePkce: true,
     });
+    await this.create({
+      clientId: 'dashboard-spa',
+      name: 'Admin Dashboard',
+      type: 'spa',
+      redirectUris: ['http://localhost:4200/auth/callback'],
+      grantTypes: ['authorization_code'],
+      responseTypes: ['code'],
+      tokenEndpointAuthMethod: 'none',
+      requirePkce: true,
+    });
+    await this.create({
+      clientId: 'mobile-app',
+      name: 'Mobile App',
+      type: 'native',
+      redirectUris: ['com.example.app://callback'],
+      grantTypes: ['authorization_code', 'refresh_token'],
+      responseTypes: ['code'],
+      tokenEndpointAuthMethod: 'none',
+      requirePkce: true,
+    });
   }
 
   async create(params: {
@@ -77,6 +97,12 @@ export class ClientStore implements OnModuleInit {
   findByClientId(clientId: string): StoredClient | undefined {
     const id = this.clientIdIndex.get(clientId);
     return id ? this.clients.get(id) : undefined;
+  }
+
+  findAllActive(): StoredClient[] {
+    return Array.from(this.clients.values()).filter(
+      (c) => c.status === 'active',
+    );
   }
 
   async validateSecret(

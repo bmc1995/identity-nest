@@ -12,9 +12,10 @@ import { StoreModule } from './modules/store/store.module';
 import { KeygenService } from './common/crypto/keygen/keygen.service';
 import { AccountController } from './common/controllers/account/account.controller';
 import { AuthModule } from './modules/auth/auth.module';
+import { AppsModule } from './modules/apps/apps.module';
 
 @Module({
-  imports: [OidcModule, ClientModule, UserModule, StoreModule, AuthModule],
+  imports: [OidcModule, ClientModule, UserModule, StoreModule, AuthModule, AppsModule],
   controllers: [AppController, DiscoveryController, JwksController, AccountController],
   providers: [AppService, JwksService, JwtService, KeygenService],
 })
