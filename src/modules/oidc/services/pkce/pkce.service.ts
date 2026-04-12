@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 
 @Injectable()
 export class PkceService {
+  private readonly logger = new Logger(PkceService.name);
+
   constructor() {}
   private _base64UrlEncode(buffer: Buffer): string {
     return buffer
@@ -26,10 +28,7 @@ export class PkceService {
    */
   private _exampleGenerateCodeChallenge(codeVerifier: string): string {
     //if env === 'production', throw new Error('Client must generate code challenge');
-    console.warn(
-      '[PkceService] Code challenge generated server-side; verifier:',
-      codeVerifier,
-    );
+    this.logger.warn('Code challenge generated server-side — client should handle this');
     const hash = createHash('sha256').update(codeVerifier);
     return hash.digest('base64url');
   }
@@ -46,7 +45,7 @@ export class PkceService {
       const digest = this._base64UrlEncode(hash.digest());
       return digest === codeChallenge;
     }
-    console.error(`Unsupported code challenge method: ${method}`);
+    this.logger.error(`Unsupported code challenge method: ${method}`);
     return false;
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID, createHmac } from 'crypto';
 import { AccountStore, StoredAccount } from '../store/stores/account.store';
 
@@ -15,6 +15,7 @@ const COOKIE_SECRET = 'dev-cookie-secret-change-in-production';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private sessions = new Map<string, SessionData>();
 
   constructor(private readonly accountStore: AccountStore) {}
@@ -24,8 +25,14 @@ export class AuthService {
     password: string,
   ): Promise<StoredAccount | null> {
     const account = this.accountStore.findByUsername(username);
-    if (!account) return null;
+    if (!account) {
+      this.logger.warn(`Authentication failed: unknown username "${username}"`);
+      return null;
+    }
     const valid = await this.accountStore.verifyPassword(account, password);
+    if (!valid) {
+      this.logger.warn(`Authentication failed: invalid password for username "${username}"`);
+    }
     return valid ? account : null;
   }
 
@@ -44,8 +51,12 @@ export class AuthService {
 
   validateSession(sessionId: string): SessionData | null {
     const session = this.sessions.get(sessionId);
-    if (!session) return null;
+    if (!session) {
+      this.logger.warn(`Session not found: ${sessionId}`);
+      return null;
+    }
     if (session.expiresAt < new Date()) {
+      this.logger.warn(`Session expired for account=${session.accountId}`);
       this.sessions.delete(sessionId);
       return null;
     }
@@ -67,13 +78,19 @@ export class AuthService {
   /** Verify and extract session ID from a signed cookie value */
   verifySignedSessionId(signedValue: string): string | null {
     const dotIndex = signedValue.lastIndexOf('.');
-    if (dotIndex === -1) return null;
+    if (dotIndex === -1) {
+      this.logger.warn('Malformed signed session cookie (no separator)');
+      return null;
+    }
     const sessionId = signedValue.substring(0, dotIndex);
     const signature = signedValue.substring(dotIndex + 1);
     const expected = createHmac('sha256', COOKIE_SECRET)
       .update(sessionId)
       .digest('base64url');
-    if (signature !== expected) return null;
+    if (signature !== expected) {
+      this.logger.warn('Session cookie signature mismatch — possible tampering');
+      return null;
+    }
     return sessionId;
   }
 

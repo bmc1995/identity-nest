@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Post,
   Param,
   Body,
@@ -16,6 +17,8 @@ import { OidcService } from '../oidc/oidc.service';
 
 @Controller('interaction')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly interactionStore: InteractionStore,
@@ -29,6 +32,7 @@ export class AuthController {
   ) {
     const interaction = this.interactionStore.find(uid);
     if (!interaction) {
+      this.logger.warn(`Interaction not found: ${uid}`);
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
     }
 
@@ -45,6 +49,7 @@ export class AuthController {
       );
     }
 
+    this.logger.error(`Unknown interaction prompt "${interaction.prompt}" for uid=${uid}`);
     throw new HttpException('Unknown interaction prompt', HttpStatus.BAD_REQUEST);
   }
 
@@ -56,6 +61,7 @@ export class AuthController {
   ) {
     const interaction = this.interactionStore.find(uid);
     if (!interaction || interaction.prompt !== 'login') {
+      this.logger.warn(`Login submission for invalid or expired interaction: ${uid}`);
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
     }
 
@@ -64,6 +70,7 @@ export class AuthController {
       body.password,
     );
     if (!account) {
+      this.logger.warn(`Failed login attempt for username="${body.username}" on interaction=${uid}`);
       return res.status(200).header('Content-Type', 'text/html').send(
         this.renderLoginPage(uid, interaction.params.client_id, 'Invalid username or password'),
       );
@@ -96,10 +103,12 @@ export class AuthController {
   ) {
     const interaction = this.interactionStore.find(uid);
     if (!interaction || interaction.prompt !== 'consent' || !interaction.accountId) {
+      this.logger.warn(`Consent submission for invalid or expired interaction: ${uid}`);
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
     }
 
     if (body.approved !== 'true') {
+      this.logger.warn(`User denied consent for client_id=${interaction.params.client_id}, interaction=${uid}`);
       // User denied consent — redirect back with error
       const redirectUri = new URL(interaction.params.redirect_uri);
       redirectUri.searchParams.set('error', 'access_denied');
@@ -124,9 +133,11 @@ export class AuthController {
   ) {
     const interaction = this.interactionStore.find(uid);
     if (!interaction) {
+      this.logger.warn(`Abort requested for unknown interaction: ${uid}`);
       throw new HttpException('Interaction not found', HttpStatus.BAD_REQUEST);
     }
 
+    this.logger.warn(`Interaction aborted: uid=${uid}, client_id=${interaction.params.client_id}`);
     const redirectUri = new URL(interaction.params.redirect_uri);
     redirectUri.searchParams.set('error', 'access_denied');
     redirectUri.searchParams.set('error_description', 'The authorization request was aborted');

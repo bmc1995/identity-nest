@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { SignJWT, jwtVerify, importJWK, JWK, decodeProtectedHeader } from 'jose';
+import { Injectable, Logger } from '@nestjs/common';
+import { SignJWT, jwtVerify, importJWK, JWK, CryptoKey, decodeProtectedHeader } from 'jose';
 import { JwksService } from '../jwks/jwks.service';
 import {
   IdTokenClaims,
@@ -10,6 +10,8 @@ import { randomUUID } from 'crypto';
 
 @Injectable()
 export class JwtService {
+  private readonly logger = new Logger(JwtService.name);
+
   constructor(private readonly jwksService: JwksService) {}
 
   /** Sign an OIDC ID Token (short-lived, 5 min) */
@@ -109,11 +111,18 @@ export class JwtService {
   ): Promise<T> {
     const header = decodeProtectedHeader(token);
     if (!header.kid) {
+      this.logger.warn('JWT verification failed: missing kid in header');
       throw new Error('JWT missing kid in header');
     }
 
-    const { publicKey, issuer } =
-      await this.jwksService.getVerificationKeyByKid(header.kid);
+    let publicKey: CryptoKey;
+    let issuer: string;
+    try {
+      ({ publicKey, issuer } = await this.jwksService.getVerificationKeyByKid(header.kid));
+    } catch (err) {
+      this.logger.warn(`JWT verification failed: unknown kid="${header.kid}"`);
+      throw err;
+    }
 
     const { payload } = await jwtVerify(token, publicKey, {
       issuer,

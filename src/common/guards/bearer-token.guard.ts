@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -9,6 +10,8 @@ import { JwtService } from '../crypto/jwt/jwt.service';
 
 @Injectable()
 export class BearerTokenGuard implements CanActivate {
+  private readonly logger = new Logger(BearerTokenGuard.name);
+
   constructor(private readonly jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -16,6 +19,7 @@ export class BearerTokenGuard implements CanActivate {
     const authHeader = request.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
+      this.logger.warn('Missing or malformed Authorization header');
       throw new UnauthorizedException({
         error: 'invalid_token',
         error_description: 'Missing or malformed Authorization header',
@@ -29,6 +33,7 @@ export class BearerTokenGuard implements CanActivate {
       (request as any).tokenPayload = payload;
       return true;
     } catch {
+      this.logger.warn('Bearer token verification failed: invalid or expired');
       throw new UnauthorizedException({
         error: 'invalid_token',
         error_description: 'Access token is invalid or expired',

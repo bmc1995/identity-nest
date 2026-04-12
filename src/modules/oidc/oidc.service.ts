@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '../../common/crypto/jwt/jwt.service';
 import { PkceService } from './services/pkce/pkce.service';
 import { AccountStore } from '../store/stores/account.store';
@@ -9,6 +9,8 @@ import { StoredInteraction } from '../store/stores/interaction.store';
 
 @Injectable()
 export class OidcService {
+  private readonly logger = new Logger(OidcService.name);
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly pkceService: PkceService,
@@ -25,6 +27,7 @@ export class OidcService {
   completeConsent(interaction: StoredInteraction): string {
     const { params, accountId } = interaction;
     if (!accountId) {
+      this.logger.error('completeConsent called on interaction with no authenticated account');
       throw new Error('Interaction has no authenticated account');
     }
 
@@ -76,16 +79,19 @@ export class OidcService {
     // Consume the authorization code
     const authCode = this.authorizationCodeStore.findAndConsume(code);
     if (!authCode) {
+      this.logger.warn(`Invalid, expired, or already-used authorization code for client_id=${clientId}`);
       throw new OidcError('invalid_grant', 'Authorization code is invalid, expired, or already used');
     }
 
     // Validate client_id matches
     if (authCode.clientId !== clientId) {
+      this.logger.warn(`Authorization code client mismatch: code issued to ${authCode.clientId}, requested by ${clientId}`);
       throw new OidcError('invalid_grant', 'Authorization code was not issued to this client');
     }
 
     // Validate redirect_uri matches
     if (authCode.redirectUri !== redirectUri) {
+      this.logger.warn(`Redirect URI mismatch for client_id=${clientId}`);
       throw new OidcError('invalid_grant', 'Redirect URI mismatch');
     }
 
@@ -96,18 +102,21 @@ export class OidcService {
       authCode.codeChallengeMethod,
     );
     if (!pkceValid) {
+      this.logger.warn(`PKCE verification failed for client_id=${clientId}`);
       throw new OidcError('invalid_grant', 'PKCE verification failed');
     }
 
     // Look up the client for token lifetime config
     const client = this.clientStore.findByClientId(clientId);
     if (!client) {
+      this.logger.error(`Client not found during code exchange: ${clientId}`);
       throw new OidcError('invalid_client', 'Client not found');
     }
 
     // Look up account for ID token claims
     const account = this.accountStore.findById(authCode.accountId);
     if (!account) {
+      this.logger.error(`Account not found during code exchange: ${authCode.accountId}`);
       throw new OidcError('invalid_grant', 'Account not found');
     }
 
@@ -163,15 +172,18 @@ export class OidcService {
         scope: string;
       }>(refreshTokenJwt);
     } catch {
+      this.logger.warn(`Invalid or expired refresh token for client_id=${clientId}`);
       throw new OidcError('invalid_grant', 'Refresh token is invalid or expired');
     }
 
     if (payload.client_id !== clientId) {
+      this.logger.warn(`Refresh token client mismatch: token issued to ${payload.client_id}, requested by ${clientId}`);
       throw new OidcError('invalid_grant', 'Refresh token was not issued to this client');
     }
 
     const client = this.clientStore.findByClientId(clientId);
     if (!client) {
+      this.logger.error(`Client not found during token refresh: ${clientId}`);
       throw new OidcError('invalid_client', 'Client not found');
     }
 

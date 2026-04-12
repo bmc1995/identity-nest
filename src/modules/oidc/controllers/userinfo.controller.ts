@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Req,
   Res,
   UseGuards,
@@ -12,6 +13,8 @@ import { AccountStore } from '../../store/stores/account.store';
 
 @Controller('oidc')
 export class UserinfoController {
+  private readonly logger = new Logger(UserinfoController.name);
+
   constructor(private readonly accountStore: AccountStore) {}
 
   @Get('userinfo')
@@ -24,6 +27,7 @@ export class UserinfoController {
 
     const account = this.accountStore.findById(tokenPayload.sub);
     if (!account) {
+      this.logger.warn(`Account not found for sub=${tokenPayload.sub}`);
       return res.status(HttpStatus.UNAUTHORIZED).json({
         error: 'invalid_token',
         error_description: 'Account not found',
