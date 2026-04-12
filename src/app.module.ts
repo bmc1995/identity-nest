@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DiscoveryController } from './common/controllers/discovery/discovery.controller';
@@ -15,7 +16,24 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AppsModule } from './modules/apps/apps.module';
 
 @Module({
-  imports: [OidcModule, ClientModule, UserModule, StoreModule, AuthModule, AppsModule],
+  imports: [
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DATABASE_HOST ?? 'localhost',
+      port: parseInt(process.env.DATABASE_PORT ?? '5432', 10),
+      username: process.env.DATABASE_USER ?? 'identity',
+      password: process.env.DATABASE_PASSWORD ?? 'identity',
+      database: process.env.DATABASE_NAME ?? 'identity',
+      autoLoadEntities: true,
+      synchronize: process.env.NODE_ENV !== 'production',
+    }),
+    OidcModule,
+    ClientModule,
+    UserModule,
+    StoreModule,
+    AuthModule,
+    AppsModule,
+  ],
   controllers: [AppController, DiscoveryController, JwksController, AccountController],
   providers: [AppService, JwksService, JwtService, KeygenService],
 })
