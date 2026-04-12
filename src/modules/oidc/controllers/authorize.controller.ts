@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Query,
   Req,
   Res,
@@ -16,6 +17,8 @@ import { OidcService } from '../oidc.service';
 
 @Controller('oidc')
 export class AuthorizeController {
+  private readonly logger = new Logger(AuthorizeController.name);
+
   constructor(
     private readonly clientStore: ClientStore,
     private readonly interactionStore: InteractionStore,
@@ -37,6 +40,8 @@ export class AuthorizeController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.logger.log(`Authorize request for client_id=${clientId}`);
+
     // Validate required parameters
     if (!responseType || !clientId || !redirectUri || !scope || !codeChallenge) {
       throw new HttpException(
@@ -55,6 +60,7 @@ export class AuthorizeController {
     // Validate client
     const client = this.clientStore.findByClientId(clientId);
     if (!client || client.status !== 'active') {
+      this.logger.warn(`Invalid or inactive client: ${clientId}`);
       throw new HttpException(
         { error: 'invalid_client', error_description: 'Unknown or inactive client' },
         HttpStatus.BAD_REQUEST,
@@ -104,6 +110,7 @@ export class AuthorizeController {
             const allGranted = requestedScopes.every((s) => grantedScopes.has(s));
 
             if (allGranted) {
+              this.logger.log(`Existing grant covers requested scopes for account=${session.accountId}, skipping consent`);
               // Skip consent — issue code immediately
               const interaction = this.interactionStore.create('consent', {
                 client_id: clientId,
@@ -125,6 +132,7 @@ export class AuthorizeController {
           }
 
           // Has session but needs consent for new scopes
+          this.logger.log(`Session valid for account=${session.accountId}, requesting consent for new scopes`);
           const interaction = this.interactionStore.create('consent', {
             client_id: clientId,
             redirect_uri: redirectUri,
@@ -144,6 +152,7 @@ export class AuthorizeController {
     }
 
     // No valid session — create login interaction
+    this.logger.log(`No valid session, redirecting to login`);
     const interaction = this.interactionStore.create('login', {
       client_id: clientId,
       redirect_uri: redirectUri,
