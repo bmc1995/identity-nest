@@ -24,7 +24,7 @@ export class AuthService {
     username: string,
     password: string,
   ): Promise<StoredAccount | null> {
-    const account = this.accountStore.findByUsername(username);
+    const account = await this.accountStore.findByUsername(username);
     if (!account) {
       this.logger.warn(`Authentication failed: unknown username "${username}"`);
       return null;

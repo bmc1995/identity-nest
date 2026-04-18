@@ -42,8 +42,8 @@ export class AppsController {
       return res.redirect(303, '/apps/login');
     }
 
-    const clients = this.clientStore.findAllActive();
-    const grants = this.grantStore.findByAccount(session.accountId);
+    const clients = await this.clientStore.findAllActive();
+    const grants = await this.grantStore.findByAccount(session.accountId);
     const grantsByClient = new Map(grants.map((g) => [g.clientId, g]));
 
     this.logger.log(`Rendering app selector for account=${session.accountId}, ${clients.length} apps available`);

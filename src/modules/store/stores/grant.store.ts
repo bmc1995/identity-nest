@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { IsNull, Repository } from 'typeorm';
+import { Grant } from '../../../common/entities/grant.entity';
+import { ClientApplication } from '../../../common/entities/clientApplication.entity';
 
 export interface StoredGrant {
   id: string;
@@ -13,80 +16,110 @@ export interface StoredGrant {
 
 @Injectable()
 export class GrantStore {
-  private grants = new Map<string, StoredGrant>();
+  constructor(
+    @InjectRepository(Grant)
+    private readonly repo: Repository<Grant>,
+    @InjectRepository(ClientApplication)
+    private readonly clientRepo: Repository<ClientApplication>,
+  ) {}
 
-  /**
-   * Find an existing active grant for this account+client, or create a new one.
-   * If the existing grant's scope is a subset of the requested scope, update it.
-   */
-  findOrCreate(
+  async findOrCreate(
     accountId: string,
     clientId: string,
     scope: string,
-  ): StoredGrant {
-    // Look for existing active grant
-    for (const grant of this.grants.values()) {
-      if (
-        grant.accountId === accountId &&
-        grant.clientId === clientId &&
-        !grant.revokedAt
-      ) {
-        // Update scope if new scopes were granted
-        const existingScopes = new Set(grant.scope.split(' '));
-        const requestedScopes = scope.split(' ');
-        const needsUpdate = requestedScopes.some((s) => !existingScopes.has(s));
+  ): Promise<StoredGrant> {
+    // Look for existing active grant via join
+    const existing = await this.repo
+      .createQueryBuilder('grant')
+      .innerJoinAndSelect('grant.client', 'client')
+      .innerJoinAndSelect('grant.account', 'account')
+      .where('grant.account_id = :accountId', { accountId })
+      .andWhere('client.clientId = :clientId', { clientId })
+      .andWhere('grant.revokedAt IS NULL')
+      .getOne();
 
-        if (needsUpdate) {
-          requestedScopes.forEach((s) => existingScopes.add(s));
-          grant.scope = Array.from(existingScopes).join(' ');
-          grant.updatedAt = new Date();
-        }
-        return grant;
+    if (existing) {
+      const existingScopes = new Set(existing.scope.split(' '));
+      const requestedScopes = scope.split(' ');
+      const needsUpdate = requestedScopes.some((s) => !existingScopes.has(s));
+
+      if (needsUpdate) {
+        requestedScopes.forEach((s) => existingScopes.add(s));
+        existing.scope = Array.from(existingScopes).join(' ');
+        const updated = await this.repo.save(existing);
+        return this.toStored(updated);
       }
+      return this.toStored(existing);
     }
 
-    // Create new grant
-    const now = new Date();
-    const grant: StoredGrant = {
-      id: randomUUID(),
-      accountId,
-      clientId,
-      scope,
-      createdAt: now,
-      updatedAt: now,
-      revokedAt: null,
-    };
-    this.grants.set(grant.id, grant);
-    return grant;
-  }
-
-  findById(id: string): StoredGrant | undefined {
-    return this.grants.get(id);
-  }
-
-  findByAccount(accountId: string): StoredGrant[] {
-    const grants: StoredGrant[] = [];
-    for (const grant of this.grants.values()) {
-      if (grant.accountId === accountId && !grant.revokedAt) {
-        grants.push(grant);
-      }
+    // Resolve clientId to ClientApplication entity
+    const clientEntity = await this.clientRepo.findOneBy({ clientId });
+    if (!clientEntity) {
+      throw new Error(`Client not found: ${clientId}`);
     }
-    return grants;
+
+    try {
+      const grant = this.repo.create({
+        account: { id: accountId },
+        client: { id: clientEntity.id },
+        scope,
+        revokedAt: null,
+      });
+      const saved = await this.repo.save(grant);
+      // Attach relations for toStored mapping
+      saved.account = { id: accountId } as any;
+      saved.client = clientEntity;
+      return this.toStored(saved);
+    } catch (err: any) {
+      // Handle race condition: unique violation on (account, client)
+      if (err.code === '23505') {
+        return this.findOrCreate(accountId, clientId, scope);
+      }
+      throw err;
+    }
   }
 
-  findByAccountAndClient(
+  async findById(id: string): Promise<StoredGrant | undefined> {
+    const grant = await this.repo.findOne({
+      where: { id },
+      relations: ['account', 'client'],
+    });
+    return grant ? this.toStored(grant) : undefined;
+  }
+
+  async findByAccount(accountId: string): Promise<StoredGrant[]> {
+    const grants = await this.repo.find({
+      where: { account: { id: accountId }, revokedAt: IsNull() },
+      relations: ['account', 'client'],
+    });
+    return grants.map((g) => this.toStored(g));
+  }
+
+  async findByAccountAndClient(
     accountId: string,
     clientId: string,
-  ): StoredGrant | undefined {
-    for (const grant of this.grants.values()) {
-      if (
-        grant.accountId === accountId &&
-        grant.clientId === clientId &&
-        !grant.revokedAt
-      ) {
-        return grant;
-      }
-    }
-    return undefined;
+  ): Promise<StoredGrant | undefined> {
+    const grant = await this.repo
+      .createQueryBuilder('grant')
+      .innerJoinAndSelect('grant.client', 'client')
+      .innerJoinAndSelect('grant.account', 'account')
+      .where('grant.account_id = :accountId', { accountId })
+      .andWhere('client.clientId = :clientId', { clientId })
+      .andWhere('grant.revokedAt IS NULL')
+      .getOne();
+
+    return grant ? this.toStored(grant) : undefined;
+  }
+
+  private toStored(entity: Grant): StoredGrant {
+    return {
+      id: entity.id,
+      accountId: entity.account.id,
+      clientId: entity.client.clientId,
+      scope: entity.scope,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+      revokedAt: entity.revokedAt,
+    };
   }
 }

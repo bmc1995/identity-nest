@@ -113,7 +113,7 @@ export class TokenController {
       return null;
     }
 
-    const client = this.clientStore.findByClientId(clientId);
+    const client = await this.clientStore.findByClientId(clientId);
     if (!client || client.status !== 'active') {
       this.logger.warn(`Unknown or inactive client: ${clientId}`);
       return null;

@@ -25,7 +25,7 @@ export class UserinfoController {
       scope: string;
     };
 
-    const account = this.accountStore.findById(tokenPayload.sub);
+    const account = await this.accountStore.findById(tokenPayload.sub);
     if (!account) {
       this.logger.warn(`Account not found for sub=${tokenPayload.sub}`);
       return res.status(HttpStatus.UNAUTHORIZED).json({

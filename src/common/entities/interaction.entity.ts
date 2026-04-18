@@ -14,6 +14,9 @@ export class Interaction {
   @Column({ type: 'text', nullable: true })
   returnTo!: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  accountId!: string | null;
+
   @Column({ type: 'text', nullable: true })
   sessionHint!: string | null;
 

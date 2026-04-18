@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
+import { Interaction } from '../../../common/entities/interaction.entity';
 
 export interface StoredInteraction {
   uid: string;
@@ -23,18 +26,20 @@ export interface StoredInteraction {
 
 @Injectable()
 export class InteractionStore {
-  private interactions = new Map<string, StoredInteraction>();
+  constructor(
+    @InjectRepository(Interaction)
+    private readonly repo: Repository<Interaction>,
+  ) {}
 
-  create(
+  async create(
     prompt: 'login' | 'consent',
     params: StoredInteraction['params'],
-  ): StoredInteraction {
-    const uid = randomUUID();
+  ): Promise<StoredInteraction> {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes
 
-    const interaction: StoredInteraction = {
-      uid,
+    const interaction = this.repo.create({
+      uid: randomUUID(),
       prompt,
       params,
       returnTo: null,
@@ -42,33 +47,47 @@ export class InteractionStore {
       sessionHint: null,
       createdAt: now,
       expiresAt,
-    };
+    });
 
-    this.interactions.set(uid, interaction);
-    return interaction;
+    const saved = await this.repo.save(interaction);
+    return this.toStored(saved);
   }
 
-  find(uid: string): StoredInteraction | undefined {
-    const interaction = this.interactions.get(uid);
+  async find(uid: string): Promise<StoredInteraction | undefined> {
+    const interaction = await this.repo.findOneBy({ uid });
     if (!interaction) return undefined;
     if (interaction.expiresAt < new Date()) {
-      this.interactions.delete(uid);
+      await this.repo.delete(uid);
       return undefined;
     }
-    return interaction;
+    return this.toStored(interaction);
   }
 
-  update(
+  async update(
     uid: string,
     updates: Partial<Pick<StoredInteraction, 'prompt' | 'accountId' | 'sessionHint'>>,
-  ): StoredInteraction | undefined {
-    const interaction = this.find(uid);
+  ): Promise<StoredInteraction | undefined> {
+    const interaction = await this.find(uid);
     if (!interaction) return undefined;
-    Object.assign(interaction, updates);
-    return interaction;
+    await this.repo.update(uid, updates);
+    return { ...interaction, ...updates };
   }
 
-  delete(uid: string): boolean {
-    return this.interactions.delete(uid);
+  async delete(uid: string): Promise<boolean> {
+    const result = await this.repo.delete(uid);
+    return (result.affected ?? 0) > 0;
+  }
+
+  private toStored(entity: Interaction): StoredInteraction {
+    return {
+      uid: entity.uid,
+      prompt: entity.prompt as 'login' | 'consent',
+      params: entity.params,
+      returnTo: entity.returnTo,
+      accountId: entity.accountId,
+      sessionHint: entity.sessionHint,
+      createdAt: entity.createdAt,
+      expiresAt: entity.expiresAt,
+    };
   }
 }

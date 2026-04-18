@@ -13,9 +13,9 @@ import { User } from './user.entity';
 import { ClientApplication } from './clientApplication.entity';
 
 @Entity('consent_records')
-@Unique('consent_per_app', ['user', 'application'])
+@Unique('consent_per_app', ['user', 'clientApplication'])
 @Index('idx_user_consents', ['tenant', 'user'])
-@Index('idx_app_consents', ['application', 'revokedAt'])
+@Index('idx_app_consents', ['clientApplication', 'revokedAt'])
 export class ConsentRecord {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

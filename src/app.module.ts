@@ -25,6 +25,7 @@ import { AppsModule } from './modules/apps/apps.module';
       password: process.env.DATABASE_PASSWORD ?? 'identity',
       database: process.env.DATABASE_NAME ?? 'identity',
       autoLoadEntities: true,
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV !== 'production',
     }),
     OidcModule,

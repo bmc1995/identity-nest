@@ -1,6 +1,9 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomUUID } from 'crypto';
+import { ClientApplication } from '../../../common/entities/clientApplication.entity';
+import { Tenant } from '../../../common/entities/tenant.entity';
 
 export interface StoredClient {
   id: string;
@@ -19,43 +22,13 @@ export interface StoredClient {
 }
 
 @Injectable()
-export class ClientStore implements OnModuleInit {
-  private clients = new Map<string, StoredClient>();
-  private clientIdIndex = new Map<string, string>(); // clientId → id
-
-  async onModuleInit() {
-    await this.create({
-      clientId: 'test-client',
-      clientSecret: 'test-secret',
-      name: 'Test Application',
-      type: 'web',
-      redirectUris: ['http://localhost:3000/callback'],
-      grantTypes: ['authorization_code', 'refresh_token'],
-      responseTypes: ['code'],
-      tokenEndpointAuthMethod: 'client_secret_basic',
-      requirePkce: true,
-    });
-    await this.create({
-      clientId: 'dashboard-spa',
-      name: 'Admin Dashboard',
-      type: 'spa',
-      redirectUris: ['http://localhost:4200/auth/callback'],
-      grantTypes: ['authorization_code'],
-      responseTypes: ['code'],
-      tokenEndpointAuthMethod: 'none',
-      requirePkce: true,
-    });
-    await this.create({
-      clientId: 'mobile-app',
-      name: 'Mobile App',
-      type: 'native',
-      redirectUris: ['com.example.app://callback'],
-      grantTypes: ['authorization_code', 'refresh_token'],
-      responseTypes: ['code'],
-      tokenEndpointAuthMethod: 'none',
-      requirePkce: true,
-    });
-  }
+export class ClientStore {
+  constructor(
+    @InjectRepository(ClientApplication)
+    private readonly repo: Repository<ClientApplication>,
+    @InjectRepository(Tenant)
+    private readonly tenantRepo: Repository<Tenant>,
+  ) {}
 
   async create(params: {
     clientId: string;
@@ -67,14 +40,15 @@ export class ClientStore implements OnModuleInit {
     responseTypes: string[];
     tokenEndpointAuthMethod: string;
     requirePkce?: boolean;
+    tenant?: Tenant;
   }): Promise<StoredClient> {
-    const id = randomUUID();
     const clientSecretHash = params.clientSecret
       ? await bcrypt.hash(params.clientSecret, 12)
       : null;
 
-    const client: StoredClient = {
-      id,
+    const tenant = params.tenant ?? await this.ensureDefaultTenant();
+
+    const client = this.repo.create({
       clientId: params.clientId,
       clientSecretHash,
       name: params.name,
@@ -84,25 +58,21 @@ export class ClientStore implements OnModuleInit {
       responseTypes: params.responseTypes,
       tokenEndpointAuthMethod: params.tokenEndpointAuthMethod,
       requirePkce: params.requirePkce ?? false,
-      accessTokenLifetime: 3600,
-      refreshTokenLifetime: 2592000,
-      status: 'active',
-    };
+      tenant,
+    });
 
-    this.clients.set(id, client);
-    this.clientIdIndex.set(params.clientId, id);
-    return client;
+    const saved = await this.repo.save(client);
+    return this.toStored(saved);
   }
 
-  findByClientId(clientId: string): StoredClient | undefined {
-    const id = this.clientIdIndex.get(clientId);
-    return id ? this.clients.get(id) : undefined;
+  async findByClientId(clientId: string): Promise<StoredClient | undefined> {
+    const client = await this.repo.findOneBy({ clientId });
+    return client ? this.toStored(client) : undefined;
   }
 
-  findAllActive(): StoredClient[] {
-    return Array.from(this.clients.values()).filter(
-      (c) => c.status === 'active',
-    );
+  async findAllActive(): Promise<StoredClient[]> {
+    const clients = await this.repo.find({ where: { status: 'active' } });
+    return clients.map((c) => this.toStored(c));
   }
 
   async validateSecret(
@@ -111,5 +81,37 @@ export class ClientStore implements OnModuleInit {
   ): Promise<boolean> {
     if (!client.clientSecretHash) return false;
     return bcrypt.compare(secret, client.clientSecretHash);
+  }
+
+  private async ensureDefaultTenant(): Promise<Tenant> {
+    let tenant = await this.tenantRepo.findOneBy({ name: 'default' });
+    if (!tenant) {
+      tenant = this.tenantRepo.create({
+        name: 'default',
+        region: 'local',
+        encryption_key: 'dev-key-change-in-production',
+        settings: {},
+      });
+      tenant = await this.tenantRepo.save(tenant);
+    }
+    return tenant;
+  }
+
+  private toStored(entity: ClientApplication): StoredClient {
+    return {
+      id: entity.id,
+      clientId: entity.clientId,
+      clientSecretHash: entity.clientSecretHash,
+      name: entity.name,
+      type: entity.type,
+      redirectUris: entity.redirectUris,
+      grantTypes: entity.grantTypes,
+      responseTypes: entity.responseTypes,
+      tokenEndpointAuthMethod: entity.tokenEndpointAuthMethod,
+      requirePkce: entity.requirePkce,
+      accessTokenLifetime: entity.accessTokenLifetime,
+      refreshTokenLifetime: entity.refreshTokenLifetime,
+      status: entity.status,
+    };
   }
 }

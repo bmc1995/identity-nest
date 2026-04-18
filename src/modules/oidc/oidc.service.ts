@@ -24,7 +24,7 @@ export class OidcService {
    * Complete the consent step: create a grant, issue an authorization code,
    * and return the redirect URL.
    */
-  completeConsent(interaction: StoredInteraction): string {
+  async completeConsent(interaction: StoredInteraction): Promise<string> {
     const { params, accountId } = interaction;
     if (!accountId) {
       this.logger.error('completeConsent called on interaction with no authenticated account');
@@ -32,14 +32,14 @@ export class OidcService {
     }
 
     // Create or update the grant
-    const grant = this.grantStore.findOrCreate(
+    const grant = await this.grantStore.findOrCreate(
       accountId,
       params.client_id,
       params.scope,
     );
 
     // Issue authorization code
-    const authCode = this.authorizationCodeStore.save({
+    const authCode = await this.authorizationCodeStore.save({
       clientId: params.client_id,
       accountId,
       grantId: grant.id,
@@ -77,7 +77,7 @@ export class OidcService {
     scope: string;
   }> {
     // Consume the authorization code
-    const authCode = this.authorizationCodeStore.findAndConsume(code);
+    const authCode = await this.authorizationCodeStore.findAndConsume(code);
     if (!authCode) {
       this.logger.warn(`Invalid, expired, or already-used authorization code for client_id=${clientId}`);
       throw new OidcError('invalid_grant', 'Authorization code is invalid, expired, or already used');
@@ -107,14 +107,14 @@ export class OidcService {
     }
 
     // Look up the client for token lifetime config
-    const client = this.clientStore.findByClientId(clientId);
+    const client = await this.clientStore.findByClientId(clientId);
     if (!client) {
       this.logger.error(`Client not found during code exchange: ${clientId}`);
       throw new OidcError('invalid_client', 'Client not found');
     }
 
     // Look up account for ID token claims
-    const account = this.accountStore.findById(authCode.accountId);
+    const account = await this.accountStore.findById(authCode.accountId);
     if (!account) {
       this.logger.error(`Account not found during code exchange: ${authCode.accountId}`);
       throw new OidcError('invalid_grant', 'Account not found');
@@ -181,7 +181,7 @@ export class OidcService {
       throw new OidcError('invalid_grant', 'Refresh token was not issued to this client');
     }
 
-    const client = this.clientStore.findByClientId(clientId);
+    const client = await this.clientStore.findByClientId(clientId);
     if (!client) {
       this.logger.error(`Client not found during token refresh: ${clientId}`);
       throw new OidcError('invalid_client', 'Client not found');

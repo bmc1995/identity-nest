@@ -58,7 +58,7 @@ export class AuthorizeController {
     }
 
     // Validate client
-    const client = this.clientStore.findByClientId(clientId);
+    const client = await this.clientStore.findByClientId(clientId);
     if (!client || client.status !== 'active') {
       this.logger.warn(`Invalid or inactive client: ${clientId}`);
       throw new HttpException(
@@ -99,7 +99,7 @@ export class AuthorizeController {
         const session = this.authService.validateSession(sessionId);
         if (session) {
           // User is already authenticated — check for existing consent
-          const grant = this.grantStore.findByAccountAndClient(
+          const grant = await this.grantStore.findByAccountAndClient(
             session.accountId,
             clientId,
           );
@@ -112,7 +112,7 @@ export class AuthorizeController {
             if (allGranted) {
               this.logger.log(`Existing grant covers requested scopes for account=${session.accountId}, skipping consent`);
               // Skip consent — issue code immediately
-              const interaction = this.interactionStore.create('consent', {
+              const interaction = await this.interactionStore.create('consent', {
                 client_id: clientId,
                 redirect_uri: redirectUri,
                 response_type: responseType,
@@ -122,18 +122,18 @@ export class AuthorizeController {
                 code_challenge: codeChallenge,
                 code_challenge_method: codeChallengeMethod,
               });
-              this.interactionStore.update(interaction.uid, {
+              const currInteraction = await this.interactionStore.update(interaction.uid, {
                 accountId: session.accountId,
               });
-              const redirectUrl = this.oidcService.completeConsent(interaction);
-              this.interactionStore.delete(interaction.uid);
+              const redirectUrl = await this.oidcService.completeConsent(currInteraction);
+              await this.interactionStore.delete(currInteraction.uid);
               return res.redirect(303, redirectUrl);
             }
           }
 
           // Has session but needs consent for new scopes
           this.logger.log(`Session valid for account=${session.accountId}, requesting consent for new scopes`);
-          const interaction = this.interactionStore.create('consent', {
+          const interaction = await this.interactionStore.create('consent', {
             client_id: clientId,
             redirect_uri: redirectUri,
             response_type: responseType,
@@ -143,7 +143,7 @@ export class AuthorizeController {
             code_challenge: codeChallenge,
             code_challenge_method: codeChallengeMethod,
           });
-          this.interactionStore.update(interaction.uid, {
+          await this.interactionStore.update(interaction.uid, {
             accountId: session.accountId,
           });
           return res.redirect(303, `/interaction/${interaction.uid}`);
@@ -153,7 +153,7 @@ export class AuthorizeController {
 
     // No valid session — create login interaction
     this.logger.log(`No valid session, redirecting to login`);
-    const interaction = this.interactionStore.create('login', {
+    const interaction = await this.interactionStore.create('login', {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: responseType,

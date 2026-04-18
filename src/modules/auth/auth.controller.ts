@@ -30,7 +30,7 @@ export class AuthController {
     @Param('uid') uid: string,
     @Res() res: Response,
   ) {
-    const interaction = this.interactionStore.find(uid);
+    const interaction = await this.interactionStore.find(uid);
     if (!interaction) {
       this.logger.warn(`Interaction not found: ${uid}`);
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
@@ -59,7 +59,7 @@ export class AuthController {
     @Body() body: { username: string; password: string },
     @Res() res: Response,
   ) {
-    const interaction = this.interactionStore.find(uid);
+    const interaction = await this.interactionStore.find(uid);
     if (!interaction || interaction.prompt !== 'login') {
       this.logger.warn(`Login submission for invalid or expired interaction: ${uid}`);
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
@@ -87,7 +87,7 @@ export class AuthController {
     });
 
     // Advance interaction to consent
-    this.interactionStore.update(uid, {
+    await this.interactionStore.update(uid, {
       prompt: 'consent',
       accountId: account.id,
     });
@@ -101,7 +101,7 @@ export class AuthController {
     @Body() body: { approved?: string },
     @Res() res: Response,
   ) {
-    const interaction = this.interactionStore.find(uid);
+    const interaction = await this.interactionStore.find(uid);
     if (!interaction || interaction.prompt !== 'consent' || !interaction.accountId) {
       this.logger.warn(`Consent submission for invalid or expired interaction: ${uid}`);
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
@@ -116,13 +116,13 @@ export class AuthController {
       if (interaction.params.state) {
         redirectUri.searchParams.set('state', interaction.params.state);
       }
-      this.interactionStore.delete(uid);
+      await this.interactionStore.delete(uid);
       return res.redirect(303, redirectUri.toString());
     }
 
     // Complete the consent and get the redirect URL with auth code
-    const redirectUrl = this.oidcService.completeConsent(interaction);
-    this.interactionStore.delete(uid);
+    const redirectUrl = await this.oidcService.completeConsent(interaction);
+    await this.interactionStore.delete(uid);
     return res.redirect(303, redirectUrl);
   }
 
@@ -131,7 +131,7 @@ export class AuthController {
     @Param('uid') uid: string,
     @Res() res: Response,
   ) {
-    const interaction = this.interactionStore.find(uid);
+    const interaction = await this.interactionStore.find(uid);
     if (!interaction) {
       this.logger.warn(`Abort requested for unknown interaction: ${uid}`);
       throw new HttpException('Interaction not found', HttpStatus.BAD_REQUEST);
@@ -144,7 +144,7 @@ export class AuthController {
     if (interaction.params.state) {
       redirectUri.searchParams.set('state', interaction.params.state);
     }
-    this.interactionStore.delete(uid);
+    await this.interactionStore.delete(uid);
     return res.redirect(303, redirectUri.toString());
   }
 
