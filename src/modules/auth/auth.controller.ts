@@ -82,7 +82,7 @@ export class AuthController {
     res.cookie(this.authService.getSessionCookieName(), signedId, {
       httpOnly: true,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 1000,
+      maxAge: this.authService.getSessionTtlMs(),
       path: '/',
     });
 

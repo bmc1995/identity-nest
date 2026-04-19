@@ -14,7 +14,7 @@ export interface StoredKey {
 @Injectable()
 export class JwksService implements OnModuleInit {
   private readonly logger = new Logger(JwksService.name);
-  private issuer = 'https://idp.example.com';
+  private issuer = process.env.OIDC_ISSUER ?? 'https://idp.example.com';
   private keys: StoredKey[] = [];
 
   async onModuleInit() {

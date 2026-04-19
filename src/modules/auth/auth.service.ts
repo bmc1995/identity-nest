@@ -9,13 +9,13 @@ interface SessionData {
   expiresAt: Date;
 }
 
-const SESSION_COOKIE = 'idp_session';
-const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-const COOKIE_SECRET = 'dev-cookie-secret-change-in-production';
-
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly sessionCookieName = process.env.SESSION_COOKIE_NAME ?? 'idp_session';
+  private readonly sessionTtlMs = parseInt(process.env.SESSION_TTL_MS ?? '3600000', 10);
+  private readonly cookieSecret =
+    process.env.COOKIE_SECRET ?? 'dev-cookie-secret-change-in-production';
   private sessions = new Map<string, SessionData>();
 
   constructor(private readonly accountStore: AccountStore) {}
@@ -43,7 +43,7 @@ export class AuthService {
       sessionId,
       accountId,
       authenticatedAt: now,
-      expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
+      expiresAt: new Date(now.getTime() + this.sessionTtlMs),
     };
     this.sessions.set(sessionId, session);
     return session;
@@ -69,7 +69,7 @@ export class AuthService {
 
   /** Sign a session ID for tamper-proof cookie storage */
   signSessionId(sessionId: string): string {
-    const signature = createHmac('sha256', COOKIE_SECRET)
+    const signature = createHmac('sha256', this.cookieSecret)
       .update(sessionId)
       .digest('base64url');
     return `${sessionId}.${signature}`;
@@ -84,7 +84,7 @@ export class AuthService {
     }
     const sessionId = signedValue.substring(0, dotIndex);
     const signature = signedValue.substring(dotIndex + 1);
-    const expected = createHmac('sha256', COOKIE_SECRET)
+    const expected = createHmac('sha256', this.cookieSecret)
       .update(sessionId)
       .digest('base64url');
     if (signature !== expected) {
@@ -95,6 +95,10 @@ export class AuthService {
   }
 
   getSessionCookieName(): string {
-    return SESSION_COOKIE;
+    return this.sessionCookieName;
+  }
+
+  getSessionTtlMs(): number {
+    return this.sessionTtlMs;
   }
 }

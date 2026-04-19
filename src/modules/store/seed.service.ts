@@ -42,7 +42,8 @@ export class SeedService implements OnModuleInit {
         this.tenantRepo.create({
           name: 'default',
           region: 'local',
-          encryption_key: 'dev-key-change-in-production',
+          encryption_key:
+            process.env.TENANT_ENCRYPTION_KEY ?? 'dev-key-change-in-production',
           settings: {
             mfa_required: false,
             session_timeout: 3600,
