@@ -6,18 +6,17 @@ import {
   Param,
   Body,
   Res,
-  Req,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { InteractionStore } from '../store/stores/interaction.store';
-import { OidcService } from '../oidc/oidc.service';
+import { Response } from 'express';
+import { AuthService } from '../../auth/auth.service';
+import { InteractionStore } from '../../store/stores/interaction.store';
+import { OidcService } from '../oidc.service';
 
 @Controller('interaction')
-export class AuthController {
-  private readonly logger = new Logger(AuthController.name);
+export class InteractionController {
+  private readonly logger = new Logger(InteractionController.name);
 
   constructor(
     private readonly authService: AuthService,
