@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,20 +15,30 @@ import { KeygenService } from './common/crypto/keygen/keygen.service';
 import { AccountController } from './common/controllers/account/account.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { AppsModule } from './modules/apps/apps.module';
+import { RedisModule } from './common/cache/redis.module';
+import configuration, { DatabaseConfig } from './common/config/configuration';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DATABASE_HOST ?? 'localhost',
-      port: parseInt(process.env.DATABASE_PORT ?? '5432', 10),
-      username: process.env.DATABASE_USER ?? 'identity',
-      password: process.env.DATABASE_PASSWORD ?? 'identity',
-      database: process.env.DATABASE_NAME ?? 'identity',
-      autoLoadEntities: true,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.NODE_ENV !== 'production',
+    ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const db = config.getOrThrow<DatabaseConfig>('database');
+        return {
+          type: 'postgres',
+          host: db.host,
+          port: db.port,
+          username: db.username,
+          password: db.password,
+          database: db.database,
+          autoLoadEntities: true,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: db.synchronize,
+        };
+      },
     }),
+    RedisModule,
     OidcModule,
     ClientModule,
     UserModule,

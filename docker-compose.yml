@@ -16,6 +16,18 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   app:
     build: .
     ports:
@@ -26,6 +38,10 @@ services:
       DATABASE_USER: identity
       DATABASE_PASSWORD: identity
       DATABASE_NAME: identity
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-idp:}
       OIDC_ISSUER: ${OIDC_ISSUER:-http://localhost:3000}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-idp_session}
@@ -35,6 +51,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:
