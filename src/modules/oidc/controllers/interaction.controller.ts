@@ -76,7 +76,7 @@ export class InteractionController {
     }
 
     // Create session and set cookie
-    const session = this.authService.createSession(account.id);
+    const session = await this.authService.createSession(account.id);
     const signedId = this.authService.signSessionId(session.sessionId);
     res.cookie(this.authService.getSessionCookieName(), signedId, {
       httpOnly: true,

@@ -37,7 +37,7 @@ export class AppsController {
       return res.redirect(303, '/apps/login');
     }
 
-    const session = this.authService.validateSession(sessionId);
+    const session = await this.authService.validateSession(sessionId);
     if (!session) {
       return res.redirect(303, '/apps/login');
     }
@@ -61,7 +61,7 @@ export class AppsController {
     const signedSessionId = req.cookies?.[cookieName];
     if (signedSessionId) {
       const sessionId = this.authService.verifySignedSessionId(signedSessionId);
-      if (sessionId && this.authService.validateSession(sessionId)) {
+      if (sessionId && (await this.authService.validateSession(sessionId))) {
         return res.redirect(303, '/apps');
       }
     }
@@ -87,7 +87,7 @@ export class AppsController {
       return res.redirect(303, '/apps/login?error=Invalid+username+or+password');
     }
 
-    const session = this.authService.createSession(account.id);
+    const session = await this.authService.createSession(account.id);
     const signedId = this.authService.signSessionId(session.sessionId);
     res.cookie(this.authService.getSessionCookieName(), signedId, {
       httpOnly: true,
@@ -107,7 +107,7 @@ export class AppsController {
     if (signedSessionId) {
       const sessionId = this.authService.verifySignedSessionId(signedSessionId);
       if (sessionId) {
-        this.authService.destroySession(sessionId);
+        await this.authService.destroySession(sessionId);
       }
     }
     res.clearCookie(cookieName, { path: '/' });

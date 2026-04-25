@@ -96,7 +96,7 @@ export class AuthorizeController {
     if (signedSessionId) {
       const sessionId = this.authService.verifySignedSessionId(signedSessionId);
       if (sessionId) {
-        const session = this.authService.validateSession(sessionId);
+        const session = await this.authService.validateSession(sessionId);
         if (session) {
           // User is already authenticated — check for existing consent
           const grant = await this.grantStore.findByAccountAndClient(

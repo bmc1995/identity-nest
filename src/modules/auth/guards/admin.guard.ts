@@ -47,7 +47,7 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException({ error: 'invalid_session' });
     }
 
-    const session = this.authService.validateSession(sessionId);
+    const session = await this.authService.validateSession(sessionId);
     if (!session) {
       throw new UnauthorizedException({ error: 'session_expired' });
     }

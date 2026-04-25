@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID, createHmac } from 'crypto';
 import { AccountStore, StoredAccount } from '../store/stores/account.store';
+import { CacheService } from '../../common/cache/cache.service';
 
 interface SessionData {
   sessionId: string;
@@ -16,9 +17,11 @@ export class AuthService {
   private readonly sessionTtlMs = parseInt(process.env.SESSION_TTL_MS ?? '3600000', 10);
   private readonly cookieSecret =
     process.env.COOKIE_SECRET ?? 'dev-cookie-secret-change-in-production';
-  private sessions = new Map<string, SessionData>();
 
-  constructor(private readonly accountStore: AccountStore) {}
+  constructor(
+    private readonly accountStore: AccountStore,
+    private readonly cache: CacheService,
+  ) {}
 
   async authenticate(
     username: string,
@@ -36,7 +39,7 @@ export class AuthService {
     return valid ? account : null;
   }
 
-  createSession(accountId: string): SessionData {
+  async createSession(accountId: string): Promise<SessionData> {
     const sessionId = randomUUID();
     const now = new Date();
     const session: SessionData = {
@@ -45,26 +48,29 @@ export class AuthService {
       authenticatedAt: now,
       expiresAt: new Date(now.getTime() + this.sessionTtlMs),
     };
-    this.sessions.set(sessionId, session);
+    await this.cache.setJson(
+      this.sessionKey(sessionId),
+      session,
+      Math.floor(this.sessionTtlMs / 1000),
+    );
     return session;
   }
 
-  validateSession(sessionId: string): SessionData | null {
-    const session = this.sessions.get(sessionId);
+  async validateSession(sessionId: string): Promise<SessionData | null> {
+    const session = await this.cache.getJson<SessionData>(this.sessionKey(sessionId));
     if (!session) {
       this.logger.warn(`Session not found: ${sessionId}`);
       return null;
     }
-    if (session.expiresAt < new Date()) {
-      this.logger.warn(`Session expired for account=${session.accountId}`);
-      this.sessions.delete(sessionId);
-      return null;
-    }
-    return session;
+    return {
+      ...session,
+      authenticatedAt: new Date(session.authenticatedAt),
+      expiresAt: new Date(session.expiresAt),
+    };
   }
 
-  destroySession(sessionId: string): void {
-    this.sessions.delete(sessionId);
+  async destroySession(sessionId: string): Promise<void> {
+    await this.cache.delete(this.sessionKey(sessionId));
   }
 
   /** Sign a session ID for tamper-proof cookie storage */
@@ -100,5 +106,9 @@ export class AuthService {
 
   getSessionTtlMs(): number {
     return this.sessionTtlMs;
+  }
+
+  private sessionKey(sessionId: string): string {
+    return `session:${sessionId}`;
   }
 }
