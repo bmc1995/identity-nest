@@ -1,10 +1,8 @@
 // OAuth 2.0 / OIDC Entities
 export { AccessToken } from './accessToken.entity';
 export { Account } from './account.entity';
-export { AuthorizationCode } from './authorizationCode';
 // export { Client } from './client.entity';
 export { Grant } from './grant.entity';
-export { Interaction } from './interaction.entity';
 export { RefreshToken } from './refreshToken.entity';
 
 // Multi-Tenant Identity Management Entities

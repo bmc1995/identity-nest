@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { Interaction } from '../../../common/entities/interaction.entity';
+import { CacheService } from '../../../common/cache/cache.service';
+
+const INTERACTION_TTL_SECONDS = 30 * 60;
 
 /**
  * An interaction represents a pending OIDC authorization request that requires
@@ -16,7 +16,7 @@ import { Interaction } from '../../../common/entities/interaction.entity';
  * used to resume the original authorization flow (issue a code, redirect back
  * to the client), and the interaction is deleted.
  *
- * Interactions are short-lived (30 minutes) and expire automatically on read.
+ * Interactions are short-lived (30 minutes) and expire automatically via Redis TTL.
  *
  * @property uid           Opaque identifier used in the interaction URL.
  * @property prompt        Which step the user is being asked to complete.
@@ -51,19 +51,14 @@ export interface StoredInteraction {
 
 @Injectable()
 export class InteractionStore {
-  constructor(
-    @InjectRepository(Interaction)
-    private readonly repo: Repository<Interaction>,
-  ) {}
+  constructor(private readonly cache: CacheService) {}
 
   async create(
     prompt: 'login' | 'consent',
     params: StoredInteraction['params'],
   ): Promise<StoredInteraction> {
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes
-
-    const interaction = this.repo.create({
+    const interaction: StoredInteraction = {
       uid: randomUUID(),
       prompt,
       params,
@@ -71,48 +66,39 @@ export class InteractionStore {
       accountId: null,
       sessionHint: null,
       createdAt: now,
-      expiresAt,
-    });
+      expiresAt: new Date(now.getTime() + INTERACTION_TTL_SECONDS * 1000),
+    };
 
-    const saved = await this.repo.save(interaction);
-    return this.toStored(saved);
+    await this.cache.setJson(this.uidKey(interaction.uid), interaction, INTERACTION_TTL_SECONDS);
+    return interaction;
   }
 
   async find(uid: string): Promise<StoredInteraction | undefined> {
-    const interaction = await this.repo.findOneBy({ uid });
-    if (!interaction) return undefined;
-    if (interaction.expiresAt < new Date()) {
-      await this.repo.delete(uid);
-      return undefined;
-    }
-    return this.toStored(interaction);
+    const stored = await this.cache.getJson<StoredInteraction>(this.uidKey(uid));
+    if (!stored) return undefined;
+    return {
+      ...stored,
+      createdAt: new Date(stored.createdAt),
+      expiresAt: new Date(stored.expiresAt),
+    };
   }
 
   async update(
     uid: string,
     updates: Partial<Pick<StoredInteraction, 'prompt' | 'accountId' | 'sessionHint'>>,
   ): Promise<StoredInteraction | undefined> {
-    const interaction = await this.find(uid);
-    if (!interaction) return undefined;
-    await this.repo.update(uid, updates);
-    return { ...interaction, ...updates };
+    const current = await this.find(uid);
+    if (!current) return undefined;
+    const merged: StoredInteraction = { ...current, ...updates };
+    await this.cache.setJsonKeepTtl(this.uidKey(uid), merged);
+    return merged;
   }
 
   async delete(uid: string): Promise<boolean> {
-    const result = await this.repo.delete(uid);
-    return (result.affected ?? 0) > 0;
+    return this.cache.delete(this.uidKey(uid));
   }
 
-  private toStored(entity: Interaction): StoredInteraction {
-    return {
-      uid: entity.uid,
-      prompt: entity.prompt as 'login' | 'consent',
-      params: entity.params,
-      returnTo: entity.returnTo,
-      accountId: entity.accountId,
-      sessionHint: entity.sessionHint,
-      createdAt: entity.createdAt,
-      expiresAt: entity.expiresAt,
-    };
+  private uidKey(uid: string): string {
+    return `interaction:${uid}`;
   }
 }

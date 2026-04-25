@@ -2,8 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Account } from '../../common/entities/account.entity';
 import { ClientApplication } from '../../common/entities/clientApplication.entity';
-import { Interaction } from '../../common/entities/interaction.entity';
-import { AuthorizationCode } from '../../common/entities/authorizationCode';
 import { Grant } from '../../common/entities/grant.entity';
 import { Tenant } from '../../common/entities/tenant.entity';
 import { AccountStore } from './stores/account.store';
@@ -23,14 +21,7 @@ const stores = [
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Account,
-      ClientApplication,
-      Interaction,
-      AuthorizationCode,
-      Grant,
-      Tenant,
-    ]),
+    TypeOrmModule.forFeature([Account, ClientApplication, Grant, Tenant]),
   ],
   providers: [...stores, SeedService],
   exports: stores,
