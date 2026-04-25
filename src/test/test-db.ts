@@ -2,13 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { StoreModule } from '../src/modules/store/store.module';
-import { AccountStore } from '../src/modules/store/stores/account.store';
-import { ClientStore } from '../src/modules/store/stores/client.store';
-import { InteractionStore } from '../src/modules/store/stores/interaction.store';
-import { AuthorizationCodeStore } from '../src/modules/store/stores/authorization-code.store';
-import { GrantStore } from '../src/modules/store/stores/grant.store';
-import { SeedService } from '../src/modules/store/seed.service';
+import { StoreModule } from '../modules/store/store.module';
+import { AccountStore } from '../modules/store/stores/account.store';
+import { ClientStore } from '../modules/store/stores/client.store';
+import { InteractionStore } from '../modules/store/stores/interaction.store';
+import { AuthorizationCodeStore } from '../modules/store/stores/authorization-code.store';
+import { GrantStore } from '../modules/store/stores/grant.store';
+import { SeedService } from '../modules/store/seed.service';
 
 /**
  * TypeORM config targeting the `identity_test` database.
@@ -22,7 +22,7 @@ export const testTypeOrmModule = TypeOrmModule.forRoot({
   password: process.env.DATABASE_PASSWORD ?? 'identity',
   database: process.env.DATABASE_NAME ?? 'identity_test',
   autoLoadEntities: true,
-  entities: [__dirname + '/../src/**/*.entity{.ts,.js}'],
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   synchronize: true,
   dropSchema: true, // clean slate each test run
 });
