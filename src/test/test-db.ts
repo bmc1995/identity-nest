@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { StoreModule } from '../modules/store/store.module';
-import { AccountStore } from '../modules/store/stores/account.store';
+import { UserStore } from '../modules/store/stores/user.store';
 import { ClientStore } from '../modules/store/stores/client.store';
 import { InteractionStore } from '../modules/store/stores/interaction.store';
 import { AuthorizationCodeStore } from '../modules/store/stores/authorization-code.store';
@@ -32,7 +32,7 @@ export interface TestDb {
   app: INestApplication;
   dataSource: DataSource;
   stores: {
-    account: AccountStore;
+    user: UserStore;
     client: ClientStore;
     interaction: InteractionStore;
     authorizationCode: AuthorizationCodeStore;
@@ -66,7 +66,7 @@ export async function setupTestDb(): Promise<TestDb> {
     app,
     dataSource,
     stores: {
-      account: module.get(AccountStore),
+      user: module.get(UserStore),
       client: module.get(ClientStore),
       interaction: module.get(InteractionStore),
       authorizationCode: module.get(AuthorizationCodeStore),

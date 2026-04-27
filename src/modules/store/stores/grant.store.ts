@@ -6,7 +6,7 @@ import { ClientApplication } from '../../../common/entities/clientApplication.en
 
 export interface StoredGrant {
   id: string;
-  accountId: string;
+  userId: string;
   clientId: string;
   scope: string;
   createdAt: Date;
@@ -24,7 +24,7 @@ export class GrantStore {
   ) {}
 
   async findOrCreate(
-    accountId: string,
+    userId: string,
     clientId: string,
     scope: string,
   ): Promise<StoredGrant> {
@@ -32,8 +32,8 @@ export class GrantStore {
     const existing = await this.repo
       .createQueryBuilder('grant')
       .innerJoinAndSelect('grant.client', 'client')
-      .innerJoinAndSelect('grant.account', 'account')
-      .where('grant.account_id = :accountId', { accountId })
+      .innerJoinAndSelect('grant.user', 'user')
+      .where('grant.user_id = :userId', { userId })
       .andWhere('client.clientId = :clientId', { clientId })
       .andWhere('grant.revokedAt IS NULL')
       .getOne();
@@ -60,20 +60,20 @@ export class GrantStore {
 
     try {
       const grant = this.repo.create({
-        account: { id: accountId },
+        user: { id: userId },
         client: { id: clientEntity.id },
         scope,
         revokedAt: null,
       });
       const saved = await this.repo.save(grant);
       // Attach relations for toStored mapping
-      saved.account = { id: accountId } as any;
+      saved.user = { id: userId } as any;
       saved.client = clientEntity;
       return this.toStored(saved);
     } catch (err: any) {
-      // Handle race condition: unique violation on (account, client)
+      // Handle race condition: unique violation on (user, client)
       if (err.code === '23505') {
-        return this.findOrCreate(accountId, clientId, scope);
+        return this.findOrCreate(userId, clientId, scope);
       }
       throw err;
     }
@@ -82,28 +82,28 @@ export class GrantStore {
   async findById(id: string): Promise<StoredGrant | undefined> {
     const grant = await this.repo.findOne({
       where: { id },
-      relations: ['account', 'client'],
+      relations: ['user', 'client'],
     });
     return grant ? this.toStored(grant) : undefined;
   }
 
-  async findByAccount(accountId: string): Promise<StoredGrant[]> {
+  async findByUser(userId: string): Promise<StoredGrant[]> {
     const grants = await this.repo.find({
-      where: { account: { id: accountId }, revokedAt: IsNull() },
-      relations: ['account', 'client'],
+      where: { user: { id: userId }, revokedAt: IsNull() },
+      relations: ['user', 'client'],
     });
     return grants.map((g) => this.toStored(g));
   }
 
-  async findByAccountAndClient(
-    accountId: string,
+  async findByUserAndClient(
+    userId: string,
     clientId: string,
   ): Promise<StoredGrant | undefined> {
     const grant = await this.repo
       .createQueryBuilder('grant')
       .innerJoinAndSelect('grant.client', 'client')
-      .innerJoinAndSelect('grant.account', 'account')
-      .where('grant.account_id = :accountId', { accountId })
+      .innerJoinAndSelect('grant.user', 'user')
+      .where('grant.user_id = :userId', { userId })
       .andWhere('client.clientId = :clientId', { clientId })
       .andWhere('grant.revokedAt IS NULL')
       .getOne();
@@ -114,7 +114,7 @@ export class GrantStore {
   private toStored(entity: Grant): StoredGrant {
     return {
       id: entity.id,
-      accountId: entity.account.id,
+      userId: entity.user.id,
       clientId: entity.client.clientId,
       scope: entity.scope,
       createdAt: entity.createdAt,

@@ -14,6 +14,9 @@ import {
 import { Tenant } from './tenant.entity';
 import { Credential } from './credential.entity';
 import { Session } from './session.entity';
+import { Grant } from './grant.entity';
+import { AccessToken } from './accessToken.entity';
+import { RefreshToken } from './refreshToken.entity';
 
 @Entity('users')
 @Unique('users_email_unique', ['tenant', 'email'])
@@ -61,7 +64,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   profilePictureUrl!: string | null;
 
-  // Account status
+  // Status
   @Column({
     type: 'varchar',
     length: 50,
@@ -119,4 +122,13 @@ export class User {
 
   @OneToMany(() => Session, (session) => session.user)
   sessions!: Session[];
+
+  @OneToMany(() => Grant, (g) => g.user)
+  grants!: Grant[];
+
+  @OneToMany(() => AccessToken, (t) => t.user)
+  accessTokens!: AccessToken[];
+
+  @OneToMany(() => RefreshToken, (t) => t.user)
+  refreshTokens!: RefreshToken[];
 }

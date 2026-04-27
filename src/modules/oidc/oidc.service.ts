@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '../../common/crypto/jwt/jwt.service';
 import { PkceService } from './services/pkce/pkce.service';
-import { AccountStore } from '../store/stores/account.store';
+import { UserStore } from '../store/stores/user.store';
 import { ClientStore } from '../store/stores/client.store';
 import { AuthorizationCodeStore } from '../store/stores/authorization-code.store';
 import { GrantStore } from '../store/stores/grant.store';
@@ -14,7 +14,7 @@ export class OidcService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly pkceService: PkceService,
-    private readonly accountStore: AccountStore,
+    private readonly userStore: UserStore,
     private readonly clientStore: ClientStore,
     private readonly authorizationCodeStore: AuthorizationCodeStore,
     private readonly grantStore: GrantStore,
@@ -25,15 +25,15 @@ export class OidcService {
    * and return the redirect URL.
    */
   async completeConsent(interaction: StoredInteraction): Promise<string> {
-    const { params, accountId } = interaction;
-    if (!accountId) {
-      this.logger.error('completeConsent called on interaction with no authenticated account');
-      throw new Error('Interaction has no authenticated account');
+    const { params, userId } = interaction;
+    if (!userId) {
+      this.logger.error('completeConsent called on interaction with no authenticated user');
+      throw new Error('Interaction has no authenticated user');
     }
 
     // Create or update the grant
     const grant = await this.grantStore.findOrCreate(
-      accountId,
+      userId,
       params.client_id,
       params.scope,
     );
@@ -41,7 +41,7 @@ export class OidcService {
     // Issue authorization code
     const authCode = await this.authorizationCodeStore.save({
       clientId: params.client_id,
-      accountId,
+      userId,
       grantId: grant.id,
       redirectUri: params.redirect_uri,
       scope: params.scope,
@@ -113,29 +113,29 @@ export class OidcService {
       throw new OidcError('invalid_client', 'Client not found');
     }
 
-    // Look up account for ID token claims
-    const account = await this.accountStore.findById(authCode.accountId);
-    if (!account) {
-      this.logger.error(`Account not found during code exchange: ${authCode.accountId}`);
-      throw new OidcError('invalid_grant', 'Account not found');
+    // Look up user for ID token claims
+    const user = await this.userStore.findById(authCode.userId);
+    if (!user) {
+      this.logger.error(`User not found during code exchange: ${authCode.userId}`);
+      throw new OidcError('invalid_grant', 'User not found');
     }
 
     // Mint tokens
     const [accessToken, idToken, refreshToken] = await Promise.all([
       this.jwtService.signAccessToken(
-        account.id,
+        user.id,
         clientId,
         authCode.scope,
         { ttlSeconds: client.accessTokenLifetime },
       ),
-      this.jwtService.signIdToken(account.id, clientId, {
+      this.jwtService.signIdToken(user.id, clientId, {
         nonce: authCode.nonce ?? undefined,
         auth_time: Math.floor(Date.now() / 1000),
-        email: account.email ?? undefined,
-        email_verified: account.emailVerified,
-        preferred_username: account.username,
+        email: user.email,
+        email_verified: user.emailVerified,
+        preferred_username: user.nickname ?? user.email,
       }),
-      this.jwtService.signRefreshToken(account.id, clientId, authCode.scope, {
+      this.jwtService.signRefreshToken(user.id, clientId, authCode.scope, {
         ttlSeconds: client.refreshTokenLifetime,
       }),
     ]);

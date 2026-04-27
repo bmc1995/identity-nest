@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { Account } from '../../common/entities/account.entity';
+import { User } from '../../common/entities/user.entity';
 import { ClientApplication } from '../../common/entities/clientApplication.entity';
 import { Grant } from '../../common/entities/grant.entity';
 import { Tenant } from '../../common/entities/tenant.entity';
@@ -12,8 +12,8 @@ export class SeedService implements OnModuleInit {
   private readonly logger = new Logger(SeedService.name);
 
   constructor(
-    @InjectRepository(Account)
-    private readonly accountRepo: Repository<Account>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     @InjectRepository(ClientApplication)
     private readonly clientRepo: Repository<ClientApplication>,
     @InjectRepository(Grant)
@@ -28,9 +28,9 @@ export class SeedService implements OnModuleInit {
     this.logger.log('Seeding test data...');
 
     const tenant = await this.seedTenant();
-    const accounts = await this.seedAccounts();
+    const users = await this.seedUsers(tenant);
     const clients = await this.seedClients(tenant);
-    await this.seedGrants(accounts, clients);
+    await this.seedGrants(users, clients);
 
     this.logger.log('Test data seeding complete');
   }
@@ -56,46 +56,49 @@ export class SeedService implements OnModuleInit {
     return tenant;
   }
 
-  private async seedAccounts(): Promise<Account[]> {
+  private async seedUsers(tenant: Tenant): Promise<User[]> {
     const seeds = [
       {
-        username: 'testuser',
-        password: 'password',
         email: 'test@example.com',
-        emailVerified: true,
-      },
-      {
-        username: 'admin',
-        password: 'admin123',
-        email: 'admin@example.com',
-        emailVerified: true,
-      },
-      {
-        username: 'jane.doe',
+        nickname: 'testuser',
         password: 'password',
+        emailVerified: true,
+      },
+      {
+        email: 'admin@example.com',
+        nickname: 'admin',
+        password: 'admin123',
+        emailVerified: true,
+      },
+      {
         email: 'jane.doe@example.com',
+        nickname: 'jane.doe',
+        password: 'password',
         emailVerified: false,
       },
     ];
 
-    const accounts: Account[] = [];
+    const users: User[] = [];
     for (const seed of seeds) {
-      let account = await this.accountRepo.findOneBy({ username: seed.username });
-      if (!account) {
+      let user = await this.userRepo.findOne({
+        where: { email: seed.email, tenant: { id: tenant.id } },
+      });
+      if (!user) {
         const passwordHash = await bcrypt.hash(seed.password, 12);
-        account = await this.accountRepo.save(
-          this.accountRepo.create({
-            username: seed.username,
+        user = await this.userRepo.save(
+          this.userRepo.create({
+            tenant,
             email: seed.email,
+            nickname: seed.nickname,
             emailVerified: seed.emailVerified,
             passwordHash,
           }),
         );
-        this.logger.log(`Seeded account: ${seed.username}`);
+        this.logger.log(`Seeded user: ${seed.email}`);
       }
-      accounts.push(account);
+      users.push(user);
     }
-    return accounts;
+    return users;
   }
 
   private async seedClients(tenant: Tenant): Promise<ClientApplication[]> {
@@ -103,9 +106,12 @@ export class SeedService implements OnModuleInit {
       {
         clientId: 'test-client',
         clientSecret: 'test-secret',
-        name: 'Test Application',
+        name: 'Test Application (confidential)',
         type: 'web',
-        redirectUris: ['http://localhost:3000/callback'],
+        redirectUris: [
+          'https://oauth.pstmn.io/v1/callback',
+          'http://localhost:8080/callback',
+        ],
         grantTypes: ['authorization_code', 'refresh_token'],
         responseTypes: ['code'],
         tokenEndpointAuthMethod: 'client_secret_basic',
@@ -113,9 +119,12 @@ export class SeedService implements OnModuleInit {
       },
       {
         clientId: 'dashboard-spa',
-        name: 'Admin Dashboard',
+        name: 'Test SPA (public)',
         type: 'spa',
-        redirectUris: ['http://localhost:4200/auth/callback'],
+        redirectUris: [
+          'https://oauth.pstmn.io/v1/callback',
+          'http://localhost:8080/callback',
+        ],
         grantTypes: ['authorization_code'],
         responseTypes: ['code'],
         tokenEndpointAuthMethod: 'none',
@@ -123,7 +132,7 @@ export class SeedService implements OnModuleInit {
       },
       {
         clientId: 'mobile-app',
-        name: 'Mobile App',
+        name: 'Mobile App (public)',
         type: 'native',
         redirectUris: ['com.example.app://callback'],
         grantTypes: ['authorization_code', 'refresh_token'],
@@ -162,30 +171,30 @@ export class SeedService implements OnModuleInit {
   }
 
   private async seedGrants(
-    accounts: Account[],
+    users: User[],
     clients: ClientApplication[],
   ): Promise<void> {
     // Pre-authorize testuser for the dashboard-spa
-    const testuser = accounts.find((a) => a.username === 'testuser');
+    const testuser = users.find((u) => u.email === 'test@example.com');
     const dashboardSpa = clients.find((c) => c.clientId === 'dashboard-spa');
 
     if (testuser && dashboardSpa) {
       const existing = await this.grantRepo.findOne({
         where: {
-          account: { id: testuser.id },
+          user: { id: testuser.id },
           client: { id: dashboardSpa.id },
         },
       });
       if (!existing) {
         await this.grantRepo.save(
           this.grantRepo.create({
-            account: { id: testuser.id },
+            user: { id: testuser.id },
             client: { id: dashboardSpa.id },
             scope: 'openid profile email',
             revokedAt: null,
           }),
         );
-        this.logger.log('Seeded grant: testuser -> dashboard-spa (openid profile email)');
+        this.logger.log('Seeded grant: test@example.com -> dashboard-spa (openid profile email)');
       }
     }
   }

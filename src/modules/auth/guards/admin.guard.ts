@@ -8,16 +8,16 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from '../auth.service';
-import { AccountStore } from '../../store/stores/account.store';
+import { UserStore } from '../../store/stores/user.store';
 
 /**
- * Guards routes that require an authenticated admin account.
+ * Guards routes that require an authenticated admin user.
  *
- * Validates the signed session cookie issued by the /apps login flow,
- * loads the account, and checks its username against the `ADMIN_USERNAMES`
- * env allowlist (comma-separated; defaults to `admin`).
+ * Validates the signed session cookie issued by the OIDC interaction
+ * login flow, loads the user, and checks its email against the
+ * `ADMIN_EMAILS` env allowlist (comma-separated; defaults to `admin@example.com`).
  *
- * Attaches the admin account to `req.adminAccount` on success.
+ * Attaches the admin user to `req.adminUser` on success.
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -25,13 +25,13 @@ export class AdminGuard implements CanActivate {
 
   constructor(
     private readonly authService: AuthService,
-    private readonly accountStore: AccountStore,
+    private readonly userStore: UserStore,
   ) {}
 
   /**
    * Authorizes the request if a valid session belongs to an allowlisted admin.
    * @throws UnauthorizedException when the session is missing, tampered, or expired.
-   * @throws ForbiddenException when the account is not in the admin allowlist.
+   * @throws ForbiddenException when the user is not in the admin allowlist.
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -52,30 +52,33 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException({ error: 'session_expired' });
     }
 
-    const account = await this.accountStore.findById(session.accountId);
-    if (!account) {
-      throw new UnauthorizedException({ error: 'account_not_found' });
+    const user = await this.userStore.findById(session.userId);
+    if (!user) {
+      throw new UnauthorizedException({ error: 'user_not_found' });
     }
 
-    if (!this.isAdmin(account.username)) {
-      this.logger.warn(`Non-admin "${account.username}" attempted admin action`);
+    if (!this.isAdmin(user.email)) {
+      this.logger.warn(`Non-admin "${user.email}" attempted admin action`);
       throw new ForbiddenException({ error: 'admin_required' });
     }
 
-    (request as any).adminAccount = account;
+    (request as any).adminUser = user;
     return true;
   }
 
   /**
-   * Returns true when `username` appears in the `ADMIN_USERNAMES` allowlist
+   * Returns true when `email` appears in the `ADMIN_EMAILS` allowlist
    * (case-insensitive).
+   *
+   * FOR DEMO/TESTING PURPOSES ONLY. In production, you should implement a
+   * more robust RBAC system rather than relying on env vars and emails.
    */
-  private isAdmin(username: string): boolean {
-    const raw = process.env.ADMIN_USERNAMES ?? 'admin';
+  private isAdmin(email: string): boolean {
+    const raw = process.env.ADMIN_EMAILS ?? 'admin@example.com';
     const admins = raw
       .split(',')
       .map((u) => u.trim().toLowerCase())
       .filter(Boolean);
-    return admins.includes(username.toLowerCase());
+    return admins.includes(email.toLowerCase());
   }
 }

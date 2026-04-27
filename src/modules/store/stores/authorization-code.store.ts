@@ -7,7 +7,7 @@ const AUTH_CODE_TTL_SECONDS = 10 * 60;
 export interface StoredAuthorizationCode {
   code: string;
   clientId: string;
-  accountId: string;
+  userId: string;
   grantId: string;
   redirectUri: string;
   scope: string;
@@ -25,7 +25,7 @@ export class AuthorizationCodeStore {
 
   async save(params: {
     clientId: string;
-    accountId: string;
+    userId: string;
     grantId: string;
     redirectUri: string;
     scope: string;
@@ -39,7 +39,7 @@ export class AuthorizationCodeStore {
     const stored: StoredAuthorizationCode = {
       code,
       clientId: params.clientId,
-      accountId: params.accountId,
+      userId: params.userId,
       grantId: params.grantId,
       redirectUri: params.redirectUri,
       scope: params.scope,

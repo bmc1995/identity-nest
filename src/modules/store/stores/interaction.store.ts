@@ -25,7 +25,7 @@ const INTERACTION_TTL_SECONDS = 30 * 60;
  *                         needed to resume the flow after the prompt is satisfied.
  * @property returnTo      Optional override for where to send the user after the
  *                         prompt completes (defaults to resuming `/authorize`).
- * @property accountId     Set once the user has authenticated during this interaction.
+ * @property userId        Set once the user has authenticated during this interaction.
  * @property sessionHint   Optional pointer to an existing session (e.g. to re-use
  *                         a logged-in account across prompts).
  */
@@ -43,7 +43,7 @@ export interface StoredInteraction {
     code_challenge_method: string;
   };
   returnTo: string | null;
-  accountId: string | null;
+  userId: string | null;
   sessionHint: string | null;
   createdAt: Date;
   expiresAt: Date;
@@ -63,7 +63,7 @@ export class InteractionStore {
       prompt,
       params,
       returnTo: null,
-      accountId: null,
+      userId: null,
       sessionHint: null,
       createdAt: now,
       expiresAt: new Date(now.getTime() + INTERACTION_TTL_SECONDS * 1000),
@@ -85,7 +85,7 @@ export class InteractionStore {
 
   async update(
     uid: string,
-    updates: Partial<Pick<StoredInteraction, 'prompt' | 'accountId' | 'sessionHint'>>,
+    updates: Partial<Pick<StoredInteraction, 'prompt' | 'userId' | 'sessionHint'>>,
   ): Promise<StoredInteraction | undefined> {
     const current = await this.find(uid);
     if (!current) return undefined;

@@ -7,7 +7,7 @@ import { urlencoded, json } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:4200')
+  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:8080')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

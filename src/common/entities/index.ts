@@ -1,6 +1,5 @@
 // OAuth 2.0 / OIDC Entities
 export { AccessToken } from './accessToken.entity';
-export { Account } from './account.entity';
 // export { Client } from './client.entity';
 export { Grant } from './grant.entity';
 export { RefreshToken } from './refreshToken.entity';

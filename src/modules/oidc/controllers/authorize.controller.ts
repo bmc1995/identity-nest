@@ -14,6 +14,7 @@ import { InteractionStore } from '../../store/stores/interaction.store';
 import { GrantStore } from '../../store/stores/grant.store';
 import { AuthService } from '../../auth/auth.service';
 import { OidcService } from '../oidc.service';
+import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
 
 @Controller('oidc')
 export class AuthorizeController {
@@ -29,17 +30,20 @@ export class AuthorizeController {
 
   @Get('authorize')
   async authorize(
-    @Query('response_type') responseType: string,
-    @Query('client_id') clientId: string,
-    @Query('redirect_uri') redirectUri: string,
-    @Query('scope') scope: string,
-    @Query('state') state: string | undefined,
-    @Query('nonce') nonce: string | undefined,
-    @Query('code_challenge') codeChallenge: string,
-    @Query('code_challenge_method') codeChallengeMethod: string,
+    @Query() query: AuthorizeQueryDto,
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const {
+      response_type: responseType,
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope,
+      state,
+      nonce,
+      code_challenge: codeChallenge,
+    } = query;
+    let codeChallengeMethod = query.code_challenge_method;
     this.logger.log(`Authorize request for client_id=${clientId}`);
 
     // Validate required parameters
@@ -99,8 +103,8 @@ export class AuthorizeController {
         const session = await this.authService.validateSession(sessionId);
         if (session) {
           // User is already authenticated — check for existing consent
-          const grant = await this.grantStore.findByAccountAndClient(
-            session.accountId,
+          const grant = await this.grantStore.findByUserAndClient(
+            session.userId,
             clientId,
           );
           if (grant) {
@@ -110,7 +114,7 @@ export class AuthorizeController {
             const allGranted = requestedScopes.every((s) => grantedScopes.has(s));
 
             if (allGranted) {
-              this.logger.log(`Existing grant covers requested scopes for account=${session.accountId}, skipping consent`);
+              this.logger.log(`Existing grant covers requested scopes for user=${session.userId}, skipping consent`);
               // Skip consent — issue code immediately
               const interaction = await this.interactionStore.create('consent', {
                 client_id: clientId,
@@ -123,7 +127,7 @@ export class AuthorizeController {
                 code_challenge_method: codeChallengeMethod,
               });
               const currInteraction = await this.interactionStore.update(interaction.uid, {
-                accountId: session.accountId,
+                userId: session.userId,
               });
               const redirectUrl = await this.oidcService.completeConsent(currInteraction);
               await this.interactionStore.delete(currInteraction.uid);
@@ -132,7 +136,7 @@ export class AuthorizeController {
           }
 
           // Has session but needs consent for new scopes
-          this.logger.log(`Session valid for account=${session.accountId}, requesting consent for new scopes`);
+          this.logger.log(`Session valid for user=${session.userId}, requesting consent for new scopes`);
           const interaction = await this.interactionStore.create('consent', {
             client_id: clientId,
             redirect_uri: redirectUri,
@@ -144,7 +148,7 @@ export class AuthorizeController {
             code_challenge_method: codeChallengeMethod,
           });
           await this.interactionStore.update(interaction.uid, {
-            accountId: session.accountId,
+            userId: session.userId,
           });
           return res.redirect(303, `/interaction/${interaction.uid}`);
         }

@@ -13,6 +13,8 @@ import { Response } from 'express';
 import { AuthService } from '../../auth/auth.service';
 import { InteractionStore } from '../../store/stores/interaction.store';
 import { OidcService } from '../oidc.service';
+import { LoginDto } from '../dto/login.dto';
+import { ConsentDto } from '../dto/consent.dto';
 
 @Controller('interaction')
 export class InteractionController {
@@ -55,7 +57,7 @@ export class InteractionController {
   @Post(':uid/login')
   async submitLogin(
     @Param('uid') uid: string,
-    @Body() body: { username: string; password: string },
+    @Body() body: LoginDto,
     @Res() res: Response,
   ) {
     const interaction = await this.interactionStore.find(uid);
@@ -64,19 +66,19 @@ export class InteractionController {
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
     }
 
-    const account = await this.authService.authenticate(
-      body.username,
+    const user = await this.authService.authenticate(
+      body.email,
       body.password,
     );
-    if (!account) {
-      this.logger.warn(`Failed login attempt for username="${body.username}" on interaction=${uid}`);
+    if (!user) {
+      this.logger.warn(`Failed login attempt for email="${body.email}" on interaction=${uid}`);
       return res.status(200).header('Content-Type', 'text/html').send(
-        this.renderLoginPage(uid, interaction.params.client_id, 'Invalid username or password'),
+        this.renderLoginPage(uid, interaction.params.client_id, 'Invalid email or password'),
       );
     }
 
     // Create session and set cookie
-    const session = await this.authService.createSession(account.id);
+    const session = await this.authService.createSession(user.id);
     const signedId = this.authService.signSessionId(session.sessionId);
     res.cookie(this.authService.getSessionCookieName(), signedId, {
       httpOnly: true,
@@ -88,7 +90,7 @@ export class InteractionController {
     // Advance interaction to consent
     await this.interactionStore.update(uid, {
       prompt: 'consent',
-      accountId: account.id,
+      userId: user.id,
     });
 
     return res.redirect(303, `/interaction/${uid}`);
@@ -97,11 +99,11 @@ export class InteractionController {
   @Post(':uid/consent')
   async submitConsent(
     @Param('uid') uid: string,
-    @Body() body: { approved?: string },
+    @Body() body: ConsentDto,
     @Res() res: Response,
   ) {
     const interaction = await this.interactionStore.find(uid);
-    if (!interaction || interaction.prompt !== 'consent' || !interaction.accountId) {
+    if (!interaction || interaction.prompt !== 'consent' || !interaction.userId) {
       this.logger.warn(`Consent submission for invalid or expired interaction: ${uid}`);
       throw new HttpException('Interaction not found or expired', HttpStatus.BAD_REQUEST);
     }
@@ -173,8 +175,8 @@ export class InteractionController {
     <p class="subtitle">Application <strong>${this.escapeHtml(clientId)}</strong> is requesting access</p>
     ${error ? `<div class="error">${this.escapeHtml(error)}</div>` : ''}
     <form method="POST" action="/interaction/${this.escapeHtml(uid)}/login">
-      <label for="username">Username</label>
-      <input type="text" id="username" name="username" required autofocus>
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required autofocus>
       <label for="password">Password</label>
       <input type="password" id="password" name="password" required>
       <button type="submit">Sign In</button>

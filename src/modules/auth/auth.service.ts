@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID, createHmac } from 'crypto';
-import { AccountStore, StoredAccount } from '../store/stores/account.store';
+import { UserStore, StoredUser } from '../store/stores/user.store';
 import { CacheService } from '../../common/cache/cache.service';
 
 interface SessionData {
   sessionId: string;
-  accountId: string;
+  userId: string;
   authenticatedAt: Date;
   expiresAt: Date;
 }
@@ -19,32 +19,32 @@ export class AuthService {
     process.env.COOKIE_SECRET ?? 'dev-cookie-secret-change-in-production';
 
   constructor(
-    private readonly accountStore: AccountStore,
+    private readonly userStore: UserStore,
     private readonly cache: CacheService,
   ) {}
 
   async authenticate(
-    username: string,
+    email: string,
     password: string,
-  ): Promise<StoredAccount | null> {
-    const account = await this.accountStore.findByUsername(username);
-    if (!account) {
-      this.logger.warn(`Authentication failed: unknown username "${username}"`);
+  ): Promise<StoredUser | null> {
+    const user = await this.userStore.findByEmail(email);
+    if (!user) {
+      this.logger.warn(`Authentication failed: unknown email "${email}"`);
       return null;
     }
-    const valid = await this.accountStore.verifyPassword(account, password);
+    const valid = await this.userStore.verifyPassword(user, password);
     if (!valid) {
-      this.logger.warn(`Authentication failed: invalid password for username "${username}"`);
+      this.logger.warn(`Authentication failed: invalid password for email "${email}"`);
     }
-    return valid ? account : null;
+    return valid ? user : null;
   }
 
-  async createSession(accountId: string): Promise<SessionData> {
+  async createSession(userId: string): Promise<SessionData> {
     const sessionId = randomUUID();
     const now = new Date();
     const session: SessionData = {
       sessionId,
-      accountId,
+      userId,
       authenticatedAt: now,
       expiresAt: new Date(now.getTime() + this.sessionTtlMs),
     };

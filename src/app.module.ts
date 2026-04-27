@@ -12,9 +12,7 @@ import { ClientModule } from './modules/client/client.module';
 import { UserModule } from './modules/user/user.module';
 import { StoreModule } from './modules/store/store.module';
 import { KeygenService } from './common/crypto/keygen/keygen.service';
-import { AccountController } from './common/controllers/account/account.controller';
 import { AuthModule } from './modules/auth/auth.module';
-import { AppsModule } from './modules/apps/apps.module';
 import { RedisModule } from './common/cache/redis.module';
 import configuration, { DatabaseConfig } from './common/config/configuration';
 
@@ -44,9 +42,8 @@ import configuration, { DatabaseConfig } from './common/config/configuration';
     UserModule,
     StoreModule,
     AuthModule,
-    AppsModule,
   ],
-  controllers: [AppController, DiscoveryController, JwksController, AccountController],
+  controllers: [AppController, DiscoveryController, JwksController],
   providers: [AppService, JwksService, JwtService, KeygenService],
 })
 export class AppModule {}

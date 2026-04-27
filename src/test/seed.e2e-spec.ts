@@ -11,35 +11,35 @@ describe('SeedService (e2e)', () => {
     await teardownTestDb(db);
   });
 
-  describe('accounts', () => {
+  describe('users', () => {
     it('should seed testuser', async () => {
-      const account = await db.stores.account.findByUsername('testuser');
-      expect(account).toBeDefined();
-      expect(account!.email).toBe('test@example.com');
-      expect(account!.emailVerified).toBe(true);
+      const user = await db.stores.user.findByEmail('test@example.com');
+      expect(user).toBeDefined();
+      expect(user!.nickname).toBe('testuser');
+      expect(user!.emailVerified).toBe(true);
     });
 
     it('should seed admin', async () => {
-      const account = await db.stores.account.findByUsername('admin');
-      expect(account).toBeDefined();
-      expect(account!.email).toBe('admin@example.com');
+      const user = await db.stores.user.findByEmail('admin@example.com');
+      expect(user).toBeDefined();
+      expect(user!.nickname).toBe('admin');
     });
 
     it('should seed jane.doe', async () => {
-      const account = await db.stores.account.findByUsername('jane.doe');
-      expect(account).toBeDefined();
-      expect(account!.emailVerified).toBe(false);
+      const user = await db.stores.user.findByEmail('jane.doe@example.com');
+      expect(user).toBeDefined();
+      expect(user!.emailVerified).toBe(false);
     });
 
     it('should verify testuser password', async () => {
-      const account = await db.stores.account.findByUsername('testuser');
-      const valid = await db.stores.account.verifyPassword(account!, 'password');
+      const user = await db.stores.user.findByEmail('test@example.com');
+      const valid = await db.stores.user.verifyPassword(user!, 'password');
       expect(valid).toBe(true);
     });
 
     it('should reject wrong password', async () => {
-      const account = await db.stores.account.findByUsername('testuser');
-      const valid = await db.stores.account.verifyPassword(account!, 'wrong');
+      const user = await db.stores.user.findByEmail('test@example.com');
+      const valid = await db.stores.user.verifyPassword(user!, 'wrong');
       expect(valid).toBe(false);
     });
   });
@@ -60,7 +60,7 @@ describe('SeedService (e2e)', () => {
       expect(client!.type).toBe('spa');
       expect(client!.tokenEndpointAuthMethod).toBe('none');
       expect(client!.clientSecretHash).toBeNull();
-      expect(client!.redirectUris).toContain('http://localhost:4200/auth/callback');
+      expect(client!.redirectUris).toContain('https://oauth.pstmn.io/v1/callback');
     });
 
     it('should seed mobile-app (public, native)', async () => {
@@ -84,9 +84,9 @@ describe('SeedService (e2e)', () => {
 
   describe('grants', () => {
     it('should pre-authorize testuser for dashboard-spa', async () => {
-      const account = await db.stores.account.findByUsername('testuser');
-      const grant = await db.stores.grant.findByAccountAndClient(
-        account!.id,
+      const user = await db.stores.user.findByEmail('test@example.com');
+      const grant = await db.stores.grant.findByUserAndClient(
+        user!.id,
         'dashboard-spa',
       );
       expect(grant).toBeDefined();

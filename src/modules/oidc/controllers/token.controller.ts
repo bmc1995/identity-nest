@@ -10,6 +10,7 @@ import {
 import { Request, Response } from 'express';
 import { ClientStore, StoredClient } from '../../store/stores/client.store';
 import { OidcService, OidcError } from '../oidc.service';
+import { TokenRequestDto } from '../dto/token-request.dto';
 
 @Controller('oidc')
 export class TokenController {
@@ -23,7 +24,7 @@ export class TokenController {
   @Post('token')
   async token(
     @Req() req: Request,
-    @Body() body: Record<string, string>,
+    @Body() body: TokenRequestDto,
     @Res() res: Response,
   ) {
     try {
@@ -86,7 +87,7 @@ export class TokenController {
    */
   private async authenticateClient(
     req: Request,
-    body: Record<string, string>,
+    body: TokenRequestDto,
   ): Promise<StoredClient | null> {
     let clientId: string | undefined;
     let clientSecret: string | undefined;

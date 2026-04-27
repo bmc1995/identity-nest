@@ -8,7 +8,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { ClientApplication } from './clientApplication.entity.js';
-import { Account } from './account.entity.js';
+import { User } from './user.entity.js';
 import { Grant } from './grant.entity.js';
 
 @Entity('access_tokens')
@@ -25,10 +25,10 @@ export class AccessToken {
   @Index()
   client!: ClientApplication;
 
-  @ManyToOne(() => Account, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'account_id' })
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
   @Index()
-  account!: Account;
+  user!: User;
 
   @ManyToOne(() => Grant, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'grant_id' })
