@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '../../common/crypto/jwt/jwt.service';
 import { PkceService } from './services/pkce/pkce.service';
-import { UserStore } from '../store/stores/user.store';
+import { UserService } from '../user/user.service';
 import { ClientStore } from '../store/stores/client.store';
 import { AuthorizationCodeStore } from '../store/stores/authorization-code.store';
 import { GrantStore } from '../store/stores/grant.store';
@@ -14,7 +14,7 @@ export class OidcService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly pkceService: PkceService,
-    private readonly userStore: UserStore,
+    private readonly users: UserService,
     private readonly clientStore: ClientStore,
     private readonly authorizationCodeStore: AuthorizationCodeStore,
     private readonly grantStore: GrantStore,
@@ -114,7 +114,7 @@ export class OidcService {
     }
 
     // Look up user for ID token claims
-    const user = await this.userStore.findById(authCode.userId);
+    const user = await this.users.findById(authCode.userId);
     if (!user) {
       this.logger.error(`User not found during code exchange: ${authCode.userId}`);
       throw new OidcError('invalid_grant', 'User not found');

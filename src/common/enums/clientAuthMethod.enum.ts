@@ -4,3 +4,5 @@ export enum ClientAuthMethod {
   CLIENT_SECRET_JWT = 'client_secret_jwt',
   NONE = 'none',
 }
+
+export type ClientAuthMethodType = keyof typeof ClientAuthMethod;

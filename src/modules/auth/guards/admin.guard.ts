@@ -7,8 +7,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { AuthService } from '../auth.service';
-import { UserStore } from '../../store/stores/user.store';
+import { SessionService } from '../session.service';
+import { UserService } from '../../user/user.service';
 
 /**
  * Guards routes that require an authenticated admin user.
@@ -24,35 +24,29 @@ export class AdminGuard implements CanActivate {
   private readonly logger = new Logger(AdminGuard.name);
 
   constructor(
-    private readonly authService: AuthService,
-    private readonly userStore: UserStore,
+    private readonly sessions: SessionService,
+    private readonly users: UserService,
   ) {}
 
-  /**
-   * Authorizes the request if a valid session belongs to an allowlisted admin.
-   * @throws UnauthorizedException when the session is missing, tampered, or expired.
-   * @throws ForbiddenException when the user is not in the admin allowlist.
-   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
 
-    const cookieName = this.authService.getSessionCookieName();
-    const signed = request.cookies?.[cookieName];
+    const signed = request.cookies?.[this.sessions.getCookieName()];
     if (!signed) {
       throw new UnauthorizedException({ error: 'unauthenticated' });
     }
 
-    const sessionId = this.authService.verifySignedSessionId(signed);
+    const sessionId = this.sessions.unsign(signed);
     if (!sessionId) {
       throw new UnauthorizedException({ error: 'invalid_session' });
     }
 
-    const session = await this.authService.validateSession(sessionId);
+    const session = await this.sessions.validate(sessionId);
     if (!session) {
       throw new UnauthorizedException({ error: 'session_expired' });
     }
 
-    const user = await this.userStore.findById(session.userId);
+    const user = await this.users.findById(session.userId);
     if (!user) {
       throw new UnauthorizedException({ error: 'user_not_found' });
     }
@@ -67,9 +61,6 @@ export class AdminGuard implements CanActivate {
   }
 
   /**
-   * Returns true when `email` appears in the `ADMIN_EMAILS` allowlist
-   * (case-insensitive).
-   *
    * FOR DEMO/TESTING PURPOSES ONLY. In production, you should implement a
    * more robust RBAC system rather than relying on env vars and emails.
    */

@@ -9,13 +9,13 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { BearerTokenGuard } from '../../../common/guards/bearer-token.guard';
-import { UserStore } from '../../store/stores/user.store';
+import { UserService } from '../../user/user.service';
 
 @Controller('oidc')
 export class UserinfoController {
   private readonly logger = new Logger(UserinfoController.name);
 
-  constructor(private readonly userStore: UserStore) {}
+  constructor(private readonly users: UserService) {}
 
   @Get('userinfo')
   @UseGuards(BearerTokenGuard)
@@ -25,7 +25,7 @@ export class UserinfoController {
       scope: string;
     };
 
-    const user = await this.userStore.findById(tokenPayload.sub);
+    const user = await this.users.findById(tokenPayload.sub);
     if (!user) {
       this.logger.warn(`User not found for sub=${tokenPayload.sub}`);
       return res.status(HttpStatus.UNAUTHORIZED).json({

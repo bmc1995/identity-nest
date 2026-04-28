@@ -12,9 +12,10 @@ import { Request, Response } from 'express';
 import { ClientStore } from '../../store/stores/client.store';
 import { InteractionStore } from '../../store/stores/interaction.store';
 import { GrantStore } from '../../store/stores/grant.store';
-import { AuthService } from '../../auth/auth.service';
+import { SessionService } from '../../auth/session.service';
 import { OidcService } from '../oidc.service';
 import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
+import { PkceMethod } from '../../../common/enums/PKCEMethod.enum';
 
 @Controller('oidc')
 export class AuthorizeController {
@@ -24,7 +25,7 @@ export class AuthorizeController {
     private readonly clientStore: ClientStore,
     private readonly interactionStore: InteractionStore,
     private readonly grantStore: GrantStore,
-    private readonly authService: AuthService,
+    private readonly sessions: SessionService,
     private readonly oidcService: OidcService,
   ) {}
 
@@ -78,16 +79,14 @@ export class AuthorizeController {
         HttpStatus.BAD_REQUEST,
       );
     }
-
     // Validate code_challenge_method
     if (!codeChallengeMethod) {
-      codeChallengeMethod = 'plain';
+      codeChallengeMethod = PkceMethod.PLAIN;
     }
     if (!['S256', 'plain'].includes(codeChallengeMethod)) {
       this.redirectWithError(res, redirectUri, 'invalid_request', 'Unsupported code_challenge_method', state);
       return;
     }
-
     // PKCE required check
     if (client.requirePkce && codeChallengeMethod === 'plain') {
       this.redirectWithError(res, redirectUri, 'invalid_request', 'S256 code_challenge_method is required', state);
@@ -95,12 +94,12 @@ export class AuthorizeController {
     }
 
     // Check for existing session
-    const cookieName = this.authService.getSessionCookieName();
+    const cookieName = this.sessions.getCookieName();
     const signedSessionId = req.cookies?.[cookieName];
     if (signedSessionId) {
-      const sessionId = this.authService.verifySignedSessionId(signedSessionId);
+      const sessionId = this.sessions.unsign(signedSessionId);
       if (sessionId) {
-        const session = await this.authService.validateSession(sessionId);
+        const session = await this.sessions.validate(sessionId);
         if (session) {
           // User is already authenticated — check for existing consent
           const grant = await this.grantStore.findByUserAndClient(
