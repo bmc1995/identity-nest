@@ -25,3 +25,9 @@ lerna-debug.log*
 
 #Ignore Flag
 __*
+
+#SSL — secrets only; the loader (httpsOptions.ts) is checked in
+/src/common/https/*.cer
+/src/common/https/*.pem
+/src/common/https/*.crt
+/src/common/https/*.key

@@ -8,4 +8,9 @@ export class KeygenService {
 
         return crypto.randomBytes(32).toString('base64'); // Generate a 256-bit key
     }
+
+    async generateNonce(): Promise<string> {
+        // Generate a random nonce value
+        return crypto.randomBytes(16).toString('base64'); // Generate a 128-bit nonce
+    }
 }

@@ -111,6 +111,7 @@ export class SeedService implements OnModuleInit {
         redirectUris: [
           'https://oauth.pstmn.io/v1/callback',
           'http://localhost:8080/callback',
+          'https://localhost:5173/',
         ],
         grantTypes: ['authorization_code', 'refresh_token'],
         responseTypes: ['code'],
@@ -124,6 +125,7 @@ export class SeedService implements OnModuleInit {
         redirectUris: [
           'https://oauth.pstmn.io/v1/callback',
           'http://localhost:8080/callback',
+          'https://localhost:5173/',
         ],
         grantTypes: ['authorization_code'],
         responseTypes: ['code'],

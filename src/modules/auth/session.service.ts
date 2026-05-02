@@ -13,7 +13,7 @@ export interface SessionData {
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
   private readonly cookieName = process.env.SESSION_COOKIE_NAME ?? 'idp_session';
-  private readonly ttlMs = parseInt(process.env.SESSION_TTL_MS ?? '3600000', 10);
+  private readonly ttlMs = parseInt(process.env.SESSION_TTL_MS ?? '3600000');
   private readonly cookieSecret =
     process.env.COOKIE_SECRET ?? 'dev-cookie-secret-change-in-production';
 

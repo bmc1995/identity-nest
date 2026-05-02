@@ -15,7 +15,7 @@ import { GrantStore } from '../../store/stores/grant.store';
 import { SessionService } from '../../auth/session.service';
 import { OidcService } from '../oidc.service';
 import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
-import { PkceMethod } from '../../../common/enums/PKCEMethod.enum';
+import { PkceMethod } from '../../../common/enums/pkce-method';
 
 @Controller('oidc')
 export class AuthorizeController {

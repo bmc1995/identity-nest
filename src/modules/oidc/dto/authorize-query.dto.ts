@@ -54,7 +54,14 @@ export class AuthorizeQueryDto {
   @IsString()
   display?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Space-delimited, case-sensitive list of ASCII string values that specifies whether the Authorization Server prompts the End-User for reauthentication and consent',
+      anyOf: [
+        { type: 'string', enum: ['none', 'login', 'consent', 'select_account'] },
+        { type: 'string' },
+      ],
+  })
   @IsOptional()
   @IsString()
   prompt?: string;

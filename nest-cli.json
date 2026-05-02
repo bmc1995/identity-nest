@@ -3,6 +3,12 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "assets": [
+      { "include": "common/https/*.cer", "outDir": "dist" },
+      { "include": "common/https/*.pem", "outDir": "dist" },
+      { "include": "common/https/*.crt", "outDir": "dist" },
+      { "include": "common/https/*.key", "outDir": "dist" }
+    ]
   }
 }

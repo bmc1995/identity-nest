@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { StoreModule } from '../store/store.module';
 import { ClientController } from './client.controller';
 import { ClientService } from './client.service';
+import { UserModule } from '../user/user.module';
 
 /**
  * Admin-facing client application management module.
@@ -12,7 +13,7 @@ import { ClientService } from './client.service';
  *   - {@link AuthModule} for the `AdminGuard` that protects every route.
  */
 @Module({
-  imports: [StoreModule, AuthModule],
+  imports: [StoreModule, AuthModule, UserModule],
   controllers: [ClientController],
   providers: [ClientService],
 })

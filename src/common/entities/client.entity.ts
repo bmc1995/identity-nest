@@ -7,7 +7,7 @@
 //   PrimaryGeneratedColumn,
 //   UpdateDateColumn,
 // } from 'typeorm';
-// import { ClientAuthMethod } from '../enums/clientAuthMethod.enum.js';
+// import { ClientAuthMethod } from '../enums/client-auth-method';
 // import { Grant } from './grant.entity';
 // import { AccessToken } from './accessToken.entity.js';
 // import { RefreshToken } from './refreshToken.entity.js';
