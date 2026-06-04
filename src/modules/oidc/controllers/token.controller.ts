@@ -8,8 +8,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { ClientStore, StoredClient } from '../../store/stores/client.store';
 import { OidcService, OidcError } from '../oidc.service';
+import { ClientAuthenticatorService } from '../services/client-authenticator/client-authenticator.service';
 import { TokenRequestDto } from '../dto/token-request.dto';
 
 @Controller('oidc')
@@ -17,7 +17,7 @@ export class TokenController {
   private readonly logger = new Logger(TokenController.name);
 
   constructor(
-    private readonly clientStore: ClientStore,
+    private readonly clientAuth: ClientAuthenticatorService,
     private readonly oidcService: OidcService,
   ) {}
 
@@ -28,8 +28,7 @@ export class TokenController {
     @Res() res: Response,
   ) {
     try {
-      // Authenticate the client
-      const client = await this.authenticateClient(req, body);
+      const client = await this.clientAuth.authenticate(req, body);
       if (!client) {
         this.logger.warn(`Client authentication failed`);
         return res.status(HttpStatus.UNAUTHORIZED).json({
@@ -80,58 +79,5 @@ export class TokenController {
       }
       throw err;
     }
-  }
-
-  /**
-   * Authenticate the client via Basic auth or POST body credentials.
-   */
-  private async authenticateClient(
-    req: Request,
-    body: TokenRequestDto,
-  ): Promise<StoredClient | null> {
-    let clientId: string | undefined;
-    let clientSecret: string | undefined;
-
-    // Try HTTP Basic auth first
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Basic ')) {
-      const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
-      const colonIndex = decoded.indexOf(':');
-      if (colonIndex !== -1) {
-        clientId = decodeURIComponent(decoded.substring(0, colonIndex));
-        clientSecret = decodeURIComponent(decoded.substring(colonIndex + 1));
-      }
-    }
-
-    // Fall back to POST body
-    if (!clientId) {
-      clientId = body.client_id;
-      clientSecret = body.client_secret;
-    }
-
-    if (!clientId) {
-      this.logger.warn('No client_id provided in token request');
-      return null;
-    }
-
-    const client = await this.clientStore.findByClientId(clientId);
-    if (!client || client.status !== 'active') {
-      this.logger.warn(`Unknown or inactive client: ${clientId}`);
-      return null;
-    }
-
-    // Public clients (no secret required)
-    if (!client.clientSecretHash) return client;
-
-    // Confidential clients must provide a valid secret
-    if (!clientSecret) {
-      this.logger.warn(`Confidential client ${clientId} did not provide a secret`);
-      return null;
-    }
-    const valid = await this.clientStore.validateSecret(client, clientSecret);
-    if (!valid) {
-      this.logger.warn(`Invalid secret for client ${clientId}`);
-    }
-    return valid ? client : null;
   }
 }

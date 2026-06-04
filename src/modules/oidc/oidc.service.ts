@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { decodeProtectedHeader } from 'jose';
 import { JwtService } from '../../common/crypto/jwt/jwt.service';
 import { PkceService } from './services/pkce/pkce.service';
+import { TokenDenylistService } from './services/token-denylist/token-denylist.service';
 import { UserService } from '../user/user.service';
 import { ClientStore } from '../store/stores/client.store';
 import { AuthorizationCodeStore } from '../store/stores/authorization-code.store';
@@ -18,6 +20,7 @@ export class OidcService {
     private readonly clientStore: ClientStore,
     private readonly authorizationCodeStore: AuthorizationCodeStore,
     private readonly grantStore: GrantStore,
+    private readonly denylist: TokenDenylistService,
   ) {}
 
   /**
@@ -207,6 +210,63 @@ export class OidcService {
       refresh_token: newRefreshToken,
       scope: payload.scope,
     };
+  }
+
+  /**
+   * Revoke a token (RFC 7009). The endpoint is best-effort and returns
+   * successfully to the caller in all cases except client mismatch; this
+   * method therefore swallows verification failures and only signals an
+   * error to the caller when the token was issued to a different client.
+   *
+   * For refresh tokens we also revoke the underlying Grant so subsequent
+   * refresh attempts fail (access tokens issued from the same grant remain
+   * valid until they expire — the access-token denylist handles known JTIs,
+   * but only those explicitly revoked).
+   */
+  async revokeToken(token: string, authenticatedClientId: string): Promise<void> {
+    let payload: {
+      sub: string;
+      client_id: string;
+      scope?: string;
+      jti?: string;
+      exp?: number;
+    };
+    try {
+      payload = await this.jwtService.verifyJwt(token);
+    } catch {
+      this.logger.log(`Revocation: token is invalid or expired — no-op`);
+      return;
+    }
+
+    if (payload.client_id !== authenticatedClientId) {
+      this.logger.warn(
+        `Revocation refused: token issued to ${payload.client_id} but request from ${authenticatedClientId}`,
+      );
+      // Per RFC 7009, do not reveal validity to the caller; return silently.
+      return;
+    }
+
+    if (!payload.jti || !payload.exp) {
+      this.logger.warn('Revocation: token missing jti or exp claim — cannot denylist');
+      return;
+    }
+
+    await this.denylist.revoke(payload.jti, payload.exp);
+
+    // If this is a refresh token, also revoke the underlying grant so future
+    // refreshes against it fail. Discriminate by the `typ` header set in
+    // JwtService (rt+jwt for refresh, at+jwt for access).
+    const { typ } = decodeProtectedHeader(token);
+    if (typ === 'rt+jwt') {
+      const grant = await this.grantStore.findByUserAndClient(
+        payload.sub,
+        authenticatedClientId,
+      );
+      if (grant) {
+        await this.grantStore.revoke(grant.id);
+        this.logger.log(`Revocation: grant ${grant.id} marked revoked`);
+      }
+    }
   }
 }
 

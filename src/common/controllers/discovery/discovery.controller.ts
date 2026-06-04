@@ -13,6 +13,7 @@ export class DiscoveryController {
       authorization_endpoint: `${issuer}/oidc/authorize`,
       token_endpoint: `${issuer}/oidc/token`,
       userinfo_endpoint: `${issuer}/oidc/userinfo`,
+      revocation_endpoint: `${issuer}/oidc/revoke`,
       jwks_uri: `${issuer}/oidc/jwks.json`,
       registration_endpoint: `${issuer}/connect/register`,
       response_types_supported: ['code'],
@@ -20,6 +21,10 @@ export class DiscoveryController {
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256'],
       token_endpoint_auth_methods_supported: [
+        'client_secret_basic',
+        'client_secret_post',
+      ],
+      revocation_endpoint_auth_methods_supported: [
         'client_secret_basic',
         'client_secret_post',
       ],

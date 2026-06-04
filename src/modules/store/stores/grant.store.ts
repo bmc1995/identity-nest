@@ -95,6 +95,10 @@ export class GrantStore {
     return grants.map((g) => this.toStored(g));
   }
 
+  async revoke(grantId: string): Promise<void> {
+    await this.repo.update({ id: grantId }, { revokedAt: new Date() });
+  }
+
   async findByUserAndClient(
     userId: string,
     clientId: string,
