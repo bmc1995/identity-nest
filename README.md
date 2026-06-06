@@ -10,7 +10,7 @@ A [NestJS](https://nestjs.com/) **OAuth 2.0 Authorization Server / OpenID Connec
 > [OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749). Production concerns
 > (migrations, MFA, rate limiting, audit logging, refresh-token rotation,
 > multi-tenant enforcement) are tracked in
-> [`__planning/production_roadmap.md`](./docs/plans/production_roadmap.md) and are
+> [`docs/plans/production_roadmap.md`](./docs/plans/production_roadmap.md) and are
 > not yet implemented.
 
 ## What it does today
