@@ -10,7 +10,7 @@ A [NestJS](https://nestjs.com/) **OAuth 2.0 Authorization Server / OpenID Connec
 > [OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749). Production concerns
 > (migrations, MFA, rate limiting, audit logging, refresh-token rotation,
 > multi-tenant enforcement) are tracked in
-> [`__planning/production_roadmap.md`](./__planning/production_roadmap.md) and are
+> [`__planning/production_roadmap.md`](./docs/plans/production_roadmap.md) and are
 > not yet implemented.
 
 ## What it does today
@@ -58,7 +58,7 @@ Full documentation lives in [`docs/`](./docs/README.md):
 | [Authentication Flows](./docs/authentication-flows.md) | Sequence diagrams: authorize → consent → token, refresh, revoke |
 | [Data Model](./docs/data-model.md) | Entity ERD, Postgres/Redis split, key reference, token claims |
 | [Configuration](./docs/configuration.md) | Env vars, Docker, TLS/keys, seeded data, troubleshooting |
-| [API Testing Guide](./__projectDocs/api-testing.md) | Hands-on Postman / Bruno / Insomnia walkthroughs |
+| [API Testing Guide](./docs/api-testing.md) | Hands-on Postman / Bruno / Insomnia walkthroughs |
 
 The interactive OpenAPI UI is served by the running app at **`/api/docs`**
 (JSON at `/api/docs/openapi.json`).
