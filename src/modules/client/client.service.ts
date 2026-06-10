@@ -7,6 +7,7 @@ import {
 import { randomBytes } from 'crypto';
 import { ClientStore, StoredClient } from '../store/stores/client.store';
 import { RegisterClientDto } from './dto/register-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
 
 /**
  * Public view of a registered client returned to admin callers.
@@ -122,6 +123,47 @@ export class ClientService {
       throw new NotFoundException({ error: 'client_not_found' });
     }
     return this.toView(client);
+  }
+
+  /**
+   * Apply a partial update to a client: metadata, redirect URIs, lifetimes,
+   * or lifecycle status (enable/disable). Redirect URIs are re-validated
+   * against the client's immutable `type`.
+   *
+   * @throws BadRequestException on invalid redirect URIs or an attempt to
+   *   disable PKCE on a public client.
+   * @throws NotFoundException when no matching client exists.
+   */
+  async update(id: string, dto: UpdateClientDto): Promise<ClientView> {
+    const client = await this.clientStore.findById(id);
+    if (!client) {
+      throw new NotFoundException({ error: 'client_not_found' });
+    }
+
+    if (dto.redirectUris !== undefined) {
+      this.validateRedirectUris(dto.redirectUris, client.type);
+    }
+    if (dto.requirePkce === false && client.tokenEndpointAuthMethod === 'none') {
+      throw new BadRequestException({
+        error: 'invalid_client_metadata',
+        error_description: 'PKCE cannot be disabled for public clients',
+      });
+    }
+
+    const updated = await this.clientStore.update(id, dto);
+    this.logger.log(`Updated client "${updated.name}" (${updated.clientId})`);
+    return this.toView(updated);
+  }
+
+  /**
+   * Permanently delete a client. Grants and tokens issued to it are removed
+   * via cascade, so the deletion is irreversible.
+   *
+   * @throws NotFoundException when no matching client exists.
+   */
+  async remove(id: string): Promise<void> {
+    await this.clientStore.delete(id);
+    this.logger.log(`Deleted client ${id}`);
   }
 
   /**

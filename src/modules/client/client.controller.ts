@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +16,7 @@ import {
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -28,6 +31,7 @@ import {
   ClientWithSecretDto,
 } from './dto/client-response.dto';
 import { RegisterClientDto } from './dto/register-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
 
 /**
  * Admin REST API for registering and managing OAuth/OIDC client applications.
@@ -89,6 +93,46 @@ export class ClientController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<ClientViewDto> {
     return this.clientService.getById(id);
+  }
+
+  /**
+   * Apply a partial update to a client: metadata, redirect URIs, token
+   * lifetimes, or lifecycle status (enable/disable).
+   */
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Update a client',
+    description:
+      'Updates metadata, redirect URIs, token lifetimes, or status. The ' +
+      'client `type`, `client_id`, and auth method are immutable.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Client primary-key UUID' })
+  @ApiOkResponse({ type: ClientViewDto })
+  @ApiBadRequestResponse({ description: 'Invalid client metadata' })
+  @ApiNotFoundResponse({ description: 'Client does not exist' })
+  async update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateClientDto,
+  ): Promise<ClientViewDto> {
+    return this.clientService.update(id, dto);
+  }
+
+  /**
+   * Permanently delete a client and (via cascade) its grants and tokens.
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Delete a client',
+    description:
+      'Permanently deletes the client. Grants and tokens issued to it are ' +
+      'removed via cascade. Prefer PATCH `status: "disabled"` for a reversible shutdown.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Client primary-key UUID' })
+  @ApiNoContentResponse({ description: 'Client deleted' })
+  @ApiNotFoundResponse({ description: 'Client does not exist' })
+  async remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.clientService.remove(id);
   }
 
   /**
