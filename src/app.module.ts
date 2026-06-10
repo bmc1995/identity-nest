@@ -9,6 +9,7 @@ import { JwksController } from './common/controllers/jwks/jwks.controller';
 import { JwtService } from './common/crypto/jwt/jwt.service';
 import { OidcModule } from './modules/oidc/oidc.module';
 import { ClientModule } from './modules/client/client.module';
+import { TenantModule } from './modules/tenant/tenant.module';
 import { UserModule } from './modules/user/user.module';
 import { StoreModule } from './modules/store/store.module';
 import { KeygenService } from './common/crypto/keygen/keygen.service';
@@ -39,6 +40,7 @@ import configuration, { DatabaseConfig } from './common/config/configuration';
     RedisModule,
     OidcModule,
     ClientModule,
+    TenantModule,
     UserModule,
     StoreModule,
     AuthModule,
