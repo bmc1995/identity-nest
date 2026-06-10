@@ -9,6 +9,7 @@ import {
 import { Request } from 'express';
 import { SessionService } from '../session.service';
 import { UserService } from '../../user/user.service';
+import { isAdminEmail } from '../admin-emails';
 
 /**
  * Guards routes that require an authenticated admin user.
@@ -51,25 +52,12 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException({ error: 'user_not_found' });
     }
 
-    if (!this.isAdmin(user.email)) {
+    if (!isAdminEmail(user.email)) {
       this.logger.warn(`Non-admin "${user.email}" attempted admin action`);
       throw new ForbiddenException({ error: 'admin_required' });
     }
 
     (request as any).adminUser = user;
     return true;
-  }
-
-  /**
-   * FOR DEMO/TESTING PURPOSES ONLY. In production, you should implement a
-   * more robust RBAC system rather than relying on env vars and emails.
-   */
-  private isAdmin(email: string): boolean {
-    const raw = process.env.ADMIN_EMAILS ?? 'admin@example.com';
-    const admins = raw
-      .split(',')
-      .map((u) => u.trim().toLowerCase())
-      .filter(Boolean);
-    return admins.includes(email.toLowerCase());
   }
 }

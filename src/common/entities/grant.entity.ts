@@ -12,8 +12,8 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { ClientApplication } from './clientApplication.entity';
-import { AccessToken } from './accessToken.entity.js';
-import { RefreshToken } from './refreshToken.entity.js';
+import { AccessToken } from './accessToken.entity';
+import { RefreshToken } from './refreshToken.entity';
 
 @Entity('grants')
 @Unique('grants_unique_user_client', ['user', 'client'])
