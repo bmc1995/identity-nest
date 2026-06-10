@@ -28,6 +28,19 @@ export interface StoredClient {
   updatedAt: Date;
 }
 
+/** Fields a caller may patch on an existing client. All optional. */
+export interface ClientPatch {
+  name?: string;
+  description?: string | null;
+  redirectUris?: string[];
+  grantTypes?: string[];
+  responseTypes?: string[];
+  requirePkce?: boolean;
+  status?: string;
+  accessTokenLifetime?: number;
+  refreshTokenLifetime?: number;
+}
+
 /**
  * Data-access facade for {@link ClientApplication} records.
  *
@@ -123,6 +136,48 @@ export class ClientStore {
     client.clientSecretExpiry = null;
     const saved = await this.repo.save(client);
     return this.toStored(saved);
+  }
+
+  /**
+   * Apply a partial update to an existing client. Only defined keys on
+   * `patch` are written; `undefined` values are ignored so unspecified fields
+   * keep their current values.
+   *
+   * @throws NotFoundException when the client id does not exist.
+   */
+  async update(id: string, patch: ClientPatch): Promise<StoredClient> {
+    const client = await this.repo.findOneBy({ id });
+    if (!client) {
+      throw new NotFoundException({ error: 'client_not_found' });
+    }
+
+    if (patch.name !== undefined) client.name = patch.name;
+    if (patch.description !== undefined) client.description = patch.description;
+    if (patch.redirectUris !== undefined) client.redirectUris = patch.redirectUris;
+    if (patch.grantTypes !== undefined) client.grantTypes = patch.grantTypes;
+    if (patch.responseTypes !== undefined) client.responseTypes = patch.responseTypes;
+    if (patch.requirePkce !== undefined) client.requirePkce = patch.requirePkce;
+    if (patch.status !== undefined) client.status = patch.status;
+    if (patch.accessTokenLifetime !== undefined)
+      client.accessTokenLifetime = patch.accessTokenLifetime;
+    if (patch.refreshTokenLifetime !== undefined)
+      client.refreshTokenLifetime = patch.refreshTokenLifetime;
+
+    const saved = await this.repo.save(client);
+    return this.toStored(saved);
+  }
+
+  /**
+   * Permanently delete a client. Dependent grants and tokens are removed by
+   * `ON DELETE CASCADE` on their foreign keys.
+   *
+   * @throws NotFoundException when the client id does not exist.
+   */
+  async delete(id: string): Promise<void> {
+    const result = await this.repo.delete({ id });
+    if (!result.affected) {
+      throw new NotFoundException({ error: 'client_not_found' });
+    }
   }
 
   /**

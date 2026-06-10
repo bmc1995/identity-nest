@@ -6,6 +6,7 @@ import { Grant } from '../../common/entities/grant.entity';
 import { Tenant } from '../../common/entities/tenant.entity';
 import { UserStore } from './stores/user.store';
 import { ClientStore } from './stores/client.store';
+import { TenantStore } from './stores/tenant.store';
 import { InteractionStore } from './stores/interaction.store';
 import { AuthorizationCodeStore } from './stores/authorization-code.store';
 import { GrantStore } from './stores/grant.store';
@@ -14,6 +15,7 @@ import { SeedService } from './seed.service';
 const stores = [
   UserStore,
   ClientStore,
+  TenantStore,
   InteractionStore,
   AuthorizationCodeStore,
   GrantStore,

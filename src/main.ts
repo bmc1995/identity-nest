@@ -37,6 +37,8 @@ async function bootstrap() {
       sessionCookieName,
     )
     .addTag('clients', 'Admin: register and manage OAuth/OIDC clients')
+    .addTag('users', 'Admin: manage user accounts')
+    .addTag('tenants', 'Admin: manage tenants')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document, {

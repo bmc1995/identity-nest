@@ -6,7 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Tenant } from './tenant.entity.js';
+import { Tenant } from './tenant.entity';
 
 @Entity('audit_logs')
 export class AuditLog {

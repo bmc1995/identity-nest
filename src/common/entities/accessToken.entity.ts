@@ -7,9 +7,9 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { ClientApplication } from './clientApplication.entity.js';
-import { User } from './user.entity.js';
-import { Grant } from './grant.entity.js';
+import { ClientApplication } from './clientApplication.entity';
+import { User } from './user.entity';
+import { Grant } from './grant.entity';
 
 @Entity('access_tokens')
 export class AccessToken {
