@@ -1,11 +1,11 @@
 {
     "schema_version": 1,
-    "commit": "5acc672687dc2a498a159516eed65ca2f97eaebf",
-    "indexed_at": "2026-06-11T02:56:49Z",
+    "commit": "67582e702fecc5c8f925a23382a9515852c57a31",
+    "indexed_at": "2026-06-11T04:41:58Z",
     "project": "home-billymccrackin-Documents-CodeProjects-identity-nest",
-    "nodes": 857,
-    "edges": 1416,
-    "original_size": 3014656,
-    "compressed_size": 487070,
-    "compression_level": 9
+    "nodes": 0,
+    "edges": 0,
+    "original_size": 4456448,
+    "compressed_size": 595452,
+    "compression_level": 3
 }
