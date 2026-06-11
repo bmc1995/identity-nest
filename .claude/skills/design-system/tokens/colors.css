@@ -1,0 +1,124 @@
+/* ID Nest — Color tokens
+   Warm, earthy, dark-first. Terracotta clay accent over deep espresso.
+   Naming: --raw-* = palette primitives, semantic aliases reference them.
+   Dark is the default (:root). Light theme under [data-theme="light"]. */
+
+:root {
+  /* ── Raw palette ───────────────────────────────── */
+  /* Clay (primary accent) */
+  --raw-clay-300: #F0916B;
+  --raw-clay-400: #E5703F;
+  --raw-clay-500: #D9572E;  /* brand primary */
+  --raw-clay-600: #C7491F;
+  --raw-clay-700: #A53C1A;
+
+  /* Amber (secondary warm) */
+  --raw-amber-300: #F6C177;
+  --raw-amber-400: #F2A65A;
+  --raw-amber-500: #E8923C;
+
+  /* Cream (light ink / paper) */
+  --raw-cream-50:  #FBF6EE;
+  --raw-cream-100: #F4E9DA;
+  --raw-cream-200: #EFE7DC;
+  --raw-cream-300: #DCCDBA;
+
+  /* Espresso (warm neutral ramp, dark) */
+  --raw-espresso-950: #100b09;
+  --raw-espresso-900: #14100d;
+  --raw-espresso-850: #1c1611;
+  --raw-espresso-800: #241b15;
+  --raw-espresso-700: #33271e;
+  --raw-espresso-600: #4a392c;
+  --raw-espresso-500: #6b5443;
+  --raw-espresso-400: #8a715d;
+  --raw-espresso-300: #a99e8f;
+  --raw-espresso-200: #cdb7a6;
+
+  /* Semantic hues (warm-tuned) */
+  --raw-green-500: #3DBF8B;
+  --raw-green-600: #2E9E72;
+  --raw-teal-500:  #7FB5A6;
+  --raw-red-500:   #E5533D;
+  --raw-red-600:   #C9402C;
+  --raw-yellow-500:#E8A33C;
+  --raw-blue-500:  #6E9CD6;
+
+  /* ── Semantic aliases (DARK — default) ─────────── */
+  /* Surfaces */
+  --bg-base:        var(--raw-espresso-900);
+  --bg-sunken:      var(--raw-espresso-950);
+  --surface-1:      var(--raw-espresso-850);
+  --surface-2:      var(--raw-espresso-800);
+  --surface-3:      var(--raw-espresso-700);
+  --surface-inset:  #0d0907;
+  --overlay-scrim:  rgba(16, 11, 9, 0.66);
+
+  /* Text */
+  --text-strong:    var(--raw-cream-50);
+  --text-body:      var(--raw-cream-200);
+  --text-muted:     var(--raw-espresso-300);
+  --text-faint:     var(--raw-espresso-400);
+  --text-inverse:   var(--raw-espresso-900);
+  --text-on-accent: #2B1810;
+
+  /* Borders & lines */
+  --border-subtle:  rgba(239, 231, 220, 0.08);
+  --border-default: rgba(239, 231, 220, 0.13);
+  --border-strong:  rgba(239, 231, 220, 0.22);
+  --border-focus:   var(--raw-clay-400);
+
+  /* Accent */
+  --accent:         var(--raw-clay-500);
+  --accent-hover:   var(--raw-clay-400);
+  --accent-press:   var(--raw-clay-600);
+  --accent-soft:    rgba(217, 87, 46, 0.14);
+  --accent-ring:    rgba(217, 87, 46, 0.32);
+  --accent-2:       var(--raw-amber-400);
+
+  /* Semantic states */
+  --success:        var(--raw-green-500);
+  --success-soft:   rgba(61, 191, 139, 0.14);
+  --warning:        var(--raw-yellow-500);
+  --warning-soft:   rgba(232, 163, 60, 0.15);
+  --danger:         var(--raw-red-500);
+  --danger-soft:    rgba(229, 83, 61, 0.14);
+  --info:           var(--raw-teal-500);
+  --info-soft:      rgba(127, 181, 166, 0.14);
+
+  /* Syntax (code blocks / terminals) */
+  --syntax-bg:      var(--surface-inset);
+  --syntax-text:    var(--raw-espresso-200);
+  --syntax-keyword: var(--raw-clay-400);
+  --syntax-string:  var(--raw-green-500);
+  --syntax-number:  var(--raw-amber-400);
+  --syntax-comment: var(--raw-espresso-400);
+  --syntax-func:    var(--raw-teal-500);
+  --syntax-punct:   var(--raw-espresso-300);
+}
+
+/* ── LIGHT theme (opt-in) ───────────────────────── */
+[data-theme="light"] {
+  --bg-base:        var(--raw-cream-50);
+  --bg-sunken:      var(--raw-cream-100);
+  --surface-1:      #FFFFFF;
+  --surface-2:      var(--raw-cream-50);
+  --surface-3:      var(--raw-cream-100);
+  --surface-inset:  #241b15;
+  --overlay-scrim:  rgba(43, 24, 16, 0.45);
+
+  --text-strong:    #2B1810;
+  --text-body:      #3a2a1f;
+  --text-muted:     #6b5443;
+  --text-faint:     #8a715d;
+  --text-inverse:   var(--raw-cream-50);
+  --text-on-accent: #FFFFFF;
+
+  --border-subtle:  rgba(43, 24, 16, 0.08);
+  --border-default: rgba(43, 24, 16, 0.14);
+  --border-strong:  rgba(43, 24, 16, 0.24);
+
+  --accent-soft:    rgba(217, 87, 46, 0.10);
+  --syntax-bg:      #241b15;
+  --syntax-text:    var(--raw-cream-200);
+}

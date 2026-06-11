@@ -1,0 +1,14 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Syntax palette" subtitle="Token colors for code blocks & terminals" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="_card.css">
+<style>
+.code { background:var(--syntax-bg); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:16px 18px; font-family:var(--font-mono); font-size:13px; line-height:1.7; color:var(--syntax-text); }
+.k{color:var(--syntax-keyword)} .s{color:var(--syntax-string)} .n{color:var(--syntax-number)}
+.c{color:var(--syntax-comment)} .f{color:var(--syntax-func)} .p{color:var(--syntax-punct)}
+</style></head>
+<body><div class="card-wrap">
+  <div class="code"><span class="c">// verify an OIDC token</span><br>
+  <span class="k">const</span> session <span class="p">=</span> <span class="k">await</span> idnest<span class="p">.</span><span class="f">verify</span><span class="p">(</span>token<span class="p">,</span> <span class="p">{</span> maxAge<span class="p">:</span> <span class="n">3600</span> <span class="p">}</span><span class="p">)</span><br>
+  <span class="k">if</span> <span class="p">(</span>session<span class="p">.</span>active<span class="p">)</span> <span class="f">grant</span><span class="p">(</span><span class="s">"openid profile email"</span><span class="p">)</span></div>
+  <span class="lbl">keyword · string · number · comment · function · punctuation</span>
+</div></body></html>

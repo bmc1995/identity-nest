@@ -1,0 +1,16 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Surfaces & elevation" subtitle="How dark surfaces stack from base to overlay" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="_card.css">
+<style>
+.surf { background:var(--bg-base); border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:16px; }
+.s1 { background:var(--surface-1); border:1px solid var(--border-default); border-radius:var(--radius-lg); padding:14px; }
+.s2 { background:var(--surface-2); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:12px; box-shadow:var(--shadow-md); }
+.tag { font-family:var(--font-mono); font-size:10px; color:var(--text-muted); display:block; margin-bottom:8px; }
+</style></head>
+<body><div class="card-wrap">
+  <div class="surf"><span class="tag">--bg-base</span>
+    <div class="s1"><span class="tag">--surface-1 · card</span>
+      <div class="s2"><span class="tag" style="margin:0">--surface-2 · raised / popover · shadow-md</span></div>
+    </div>
+  </div>
+</div></body></html>

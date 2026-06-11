@@ -1,0 +1,29 @@
+/* ID Nest — Elevation (shadows) & motion tokens.
+   Dark UI leans on subtle, warm-tinted shadows + hairline borders,
+   not heavy drop shadows. Accent glow reserved for primary focus. */
+
+:root {
+  /* Shadows — warm-black based for depth on espresso surfaces */
+  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm:  0 2px 6px rgba(0, 0, 0, 0.30);
+  --shadow-md:  0 8px 24px rgba(0, 0, 0, 0.38);
+  --shadow-lg:  0 18px 48px rgba(0, 0, 0, 0.48);
+  --shadow-xl:  0 32px 80px rgba(0, 0, 0, 0.55);
+
+  /* Inset & rings */
+  --shadow-inset:  inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --ring-focus:    0 0 0 3px var(--accent-ring);
+  --ring-danger:   0 0 0 3px rgba(229, 83, 61, 0.30);
+
+  /* Accent glow — sparingly, on primary CTAs / live states */
+  --glow-accent: 0 6px 22px rgba(217, 87, 46, 0.34);
+
+  /* Motion — calm, confident. No bounce; gentle ease. */
+  --ease-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0); /* @kind other */
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --ease-in-out:   cubic-bezier(0.45, 0, 0.2, 1); /* @kind other */
+  --dur-instant: 80ms; /* @kind other */
+  --dur-fast:    140ms; /* @kind other */
+  --dur-base:    220ms; /* @kind other */
+  --dur-slow:    360ms; /* @kind other */
+}

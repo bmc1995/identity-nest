@@ -1,0 +1,38 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Feedback" subtitle="Dialog · Toast · Tooltip" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  body{ margin:0; background:var(--bg-base); padding:24px; }
+  .wrap{ display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; }
+  .col{ display:flex; flex-direction:column; gap:12px; }
+  .dlgframe{ position:relative; width:300px; height:260px; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden; background:var(--bg-sunken); }
+  .dlgframe .idn-dialog__scrim{ position:absolute; }
+  .tiprow{ display:flex; gap:14px; padding-top:34px; }
+</style></head>
+<body><div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+const { Dialog, Toast, ToastRail, Tooltip, Button, Badge, IconButton } = window.IDNestDesignSystem_c7f3f6;
+const Trash=()=><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h12M7 5V3.5h4V5M5 5l1 9h6l1-9"/></svg>;
+const Copy=()=><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="5" width="8" height="8" rx="2"/><path d="M3 11V4a1 1 0 011-1h7" strokeLinecap="round"/></svg>;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <div className="wrap">
+    <div className="dlgframe">
+      <Dialog tone="danger" icon={<Trash/>} onClose={()=>{}} size="sm"
+        title="Revoke application?" description="Acme Web loses access immediately."
+        footer={<><Button variant="ghost" size="sm">Cancel</Button><Button variant="danger" size="sm">Revoke</Button></>} />
+    </div>
+    <div className="col">
+      <Toast tone="success" title="Client created" onClose={()=>{}}>nest_a91f2e is live.</Toast>
+      <Toast tone="danger" title="Sign-in failed">Invalid client secret.</Toast>
+      <div className="tiprow">
+        <Tooltip label="Copy client ID"><IconButton icon={<Copy/>} aria-label="copy"/></Tooltip>
+        <Tooltip label="nest_a91f2e3b" mono placement="bottom"><Badge tone="accent">client_id</Badge></Tooltip>
+      </div>
+    </div>
+  </div>
+);
+</script></body></html>

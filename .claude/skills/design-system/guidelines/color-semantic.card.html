@@ -1,0 +1,18 @@
+<!-- @dsCard group="Colors" viewport="700x160" name="Semantic states" subtitle="Success, warning, danger, info — warm-tuned, with soft fills" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="_card.css">
+<style>
+.sem { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.semcell { border:1px solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden; }
+.semcell .solid { height:40px; display:flex; align-items:center; padding:0 12px; font-family:var(--font-mono); font-size:11px; color:#1b120c; font-weight:700; }
+.semcell .soft { height:34px; display:flex; align-items:center; padding:0 12px; font-family:var(--font-mono); font-size:10px; }
+</style></head>
+<body><div class="card-wrap">
+  <div class="sem">
+    <div class="semcell"><div class="solid" style="background:var(--success)">success</div><div class="soft" style="background:var(--success-soft);color:var(--success)">soft fill</div></div>
+    <div class="semcell"><div class="solid" style="background:var(--warning)">warning</div><div class="soft" style="background:var(--warning-soft);color:var(--warning)">soft fill</div></div>
+    <div class="semcell"><div class="solid" style="background:var(--danger)">danger</div><div class="soft" style="background:var(--danger-soft);color:var(--danger)">soft fill</div></div>
+    <div class="semcell"><div class="solid" style="background:var(--info)">info</div><div class="soft" style="background:var(--info-soft);color:var(--info)">soft fill</div></div>
+  </div>
+  <span class="lbl">Each pairs a solid (--success) with a 14% tint (--success-soft) for badges & banners</span>
+</div></body></html>

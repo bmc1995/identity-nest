@@ -1,0 +1,14 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Motion" subtitle="Calm and confident — gentle ease, no bounce" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="_card.css">
+<style>
+.track{position:relative;height:34px;background:var(--surface-1);border:1px solid var(--border-subtle);border-radius:var(--radius-pill);overflow:hidden}
+.dot{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:var(--accent);animation:slide var(--d) var(--e) infinite alternate}
+@keyframes slide{to{left:calc(100% - 28px)}}
+.row{display:flex;gap:14px;align-items:center}.row .v{font-family:var(--font-mono);font-size:10px;color:var(--text-faint);width:150px}
+</style></head>
+<body><div class="card-wrap" style="gap:9px">
+  <div class="row"><span class="v">base · 220ms · ease-out</span><div class="track" style="flex:1"><div class="dot" style="--d:1100ms;--e:cubic-bezier(0.16,1,0.3,1)"></div></div></div>
+  <div class="row"><span class="v">fast · 140ms · standard</span><div class="track" style="flex:1"><div class="dot" style="--d:700ms;--e:cubic-bezier(0.2,0,0,1)"></div></div></div>
+  <span class="lbl">instant 80 · fast 140 · base 220 · slow 360 — easing favours smooth deceleration</span>
+</div></body></html>

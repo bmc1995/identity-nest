@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ID Nest — Identity Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Hanken Grotesk', sans-serif; background: #100b09; }
+  .art { width: 100%; height: 100%; padding: 36px; display: flex; flex-direction: column; gap: 22px; }
+  .markrow { display: flex; align-items: center; gap: 18px; }
+  .wordmark { display: flex; flex-direction: column; gap: 2px; }
+  .wordmark .name { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  .wordmark .tag { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.55; }
+  .swatches { display: flex; gap: 0; border-radius: 12px; overflow: hidden; height: 64px; }
+  .swatches > div { flex: 1; display: flex; align-items: flex-end; padding: 8px; }
+  .swatches .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.02em; }
+  .specimen { display: flex; flex-direction: column; gap: 10px; }
+  .specimen .big { font-size: 38px; line-height: 0.98; letter-spacing: -0.03em; font-weight: 700; }
+  .specimen .body { font-size: 14px; line-height: 1.5; opacity: 0.72; max-width: 42ch; }
+  .meta { display: flex; gap: 18px; flex-wrap: wrap; }
+  .meta div { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.01em; opacity: 0.6; }
+  .meta div b { font-weight: 700; opacity: 1; }
+  .ui { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn { font-family: inherit; font-weight: 600; font-size: 13px; padding: 10px 18px; border-radius: 10px; border: none; cursor: default; }
+  .btn-ghost { background: transparent; font-weight: 600; font-size: 13px; padding: 10px 18px; border-radius: 10px; }
+  .code { flex: 1; min-width: 200px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 12px 14px; border-radius: 10px; line-height: 1.5; }
+  .code .c { opacity: 0.5; }
+  .divider { height: 1px; width: 100%; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel">
+const { DesignCanvas, DCSection, DCArtboard } = window;
+
+function MarkRoost({ size = 56, c = '#E8643C', egg = '#F4E3D0' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+      <ellipse cx="32" cy="34" rx="9" ry="11" fill={egg}/>
+      <path d="M8 36c0 13 11 20 24 20s24-7 24-20" stroke={c} strokeWidth="3.5" strokeLinecap="round"/>
+      <path d="M12 38c0 10 9 16 20 16s20-6 20-16" stroke={c} strokeWidth="2.6" strokeLinecap="round" opacity="0.6"/>
+      <path d="M6 36q6-4 13-2M58 36q-6-4-13-2" stroke={c} strokeWidth="2.6" strokeLinecap="round"/>
+      <path d="M20 33q5 3 12 3t12-3" stroke={c} strokeWidth="2.2" strokeLinecap="round" opacity="0.45"/>
+    </svg>
+  );
+}
+function MarkKeystone({ size = 56, c = '#D9572E', egg = '#F4E3D0' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+      <path d="M32 8c11 0 19 13 19 27 0 12-8 21-19 21S13 47 13 35C13 21 21 8 32 8Z" fill={egg}/>
+      <circle cx="32" cy="30" r="6" fill={c}/>
+      <rect x="29.5" y="33" width="5" height="13" rx="2.5" fill={c}/>
+    </svg>
+  );
+}
+function MarkPerch({ size = 56, c = '#E8643C', dot = '#F4E3D0', bg = '#1b1310' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+      <rect width="64" height="64" rx="16" fill={bg}/>
+      <path d="M16 40l10-12 6 7 6-10 10 15" stroke={c} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="44" cy="22" r="3.5" fill={dot}/>
+    </svg>
+  );
+}
+
+function Swatch({ palette }) {
+  return (
+    <div className="swatches">
+      {palette.map((p, i) => (
+        <div key={i} style={{ background: p.hex }}>
+          <span className="lbl" style={{ color: p.on }}>{p.hex}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Roost() {
+  const ink = '#F4E3D0', sub = '#cdb7a6';
+  return (
+    <div className="art" style={{ background: '#1b1110', color: ink }}>
+      <div className="markrow">
+        <MarkRoost size={60} />
+        <div className="wordmark">
+          <div className="name">ID&nbsp;Nest</div>
+          <div className="tag">Identity, kept warm</div>
+        </div>
+      </div>
+      <Swatch palette={[
+        { hex: '#E8643C', on: '#2B1A12' },
+        { hex: '#F2A65A', on: '#2B1A12' },
+        { hex: '#F4E3D0', on: '#2B1A12' },
+        { hex: '#2B1A12', on: '#F4E3D0' },
+        { hex: '#120b0a', on: '#cdb7a6' },
+      ]} />
+      <div className="specimen">
+        <div className="big">Auth that<br/>feels like home.</div>
+        <div className="body" style={{ color: sub }}>Hanken Grotesk — a soft, humanist grotesque. Friendly curves, neutral enough to disappear, warm enough to trust.</div>
+      </div>
+      <div className="meta">
+        <div style={{ color: sub }}><b style={{ color: ink }}>Display</b> Hanken Grotesk 700</div>
+        <div style={{ color: sub }}><b style={{ color: ink }}>Mono</b> JetBrains Mono</div>
+        <div style={{ color: sub }}><b style={{ color: ink }}>Mood</b> woven · organic</div>
+      </div>
+      <div className="divider" style={{ background: 'rgba(244,227,208,0.12)' }}></div>
+      <div className="ui">
+        <button className="btn" style={{ background: '#E8643C', color: '#2B1A12' }}>Sign in</button>
+        <button className="btn-ghost" style={{ color: ink, border: '1px solid rgba(244,227,208,0.2)' }}>Docs</button>
+        <div className="code" style={{ background: '#120b0a', color: '#cdb7a6', border: '1px solid rgba(244,227,208,0.08)' }}>
+          <span style={{ color: '#F2A65A' }}>idnest</span>.login(<span style={{ color: '#E8643C' }}>"google"</span>)
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Keystone() {
+  const ink = '#EFE7DC', sub = '#a99e8f';
+  return (
+    <div className="art" style={{ background: '#14100d', color: ink, fontFamily: "'Space Grotesk', sans-serif" }}>
+      <div className="markrow">
+        <MarkKeystone size={60} />
+        <div className="wordmark">
+          <div className="name" style={{ letterSpacing: '-0.03em' }}>ID Nest</div>
+          <div className="tag" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.14em' }}>OIDC · IDENTITY</div>
+        </div>
+      </div>
+      <Swatch palette={[
+        { hex: '#D9572E', on: '#FFF' },
+        { hex: '#C7491F', on: '#FFF' },
+        { hex: '#EFE7DC', on: '#14100d' },
+        { hex: '#241b15', on: '#EFE7DC' },
+        { hex: '#0e0b09', on: '#a99e8f' },
+      ]} />
+      <div className="specimen">
+        <div className="big" style={{ letterSpacing: '-0.035em' }}>The egg holds<br/>the identity.</div>
+        <div className="body" style={{ color: sub }}>Space Grotesk — precise, slightly mechanical grotesque. Reads as engineered. Pairs natively with monospace for a dev-credible voice.</div>
+      </div>
+      <div className="meta">
+        <div style={{ color: sub }}><b style={{ color: ink }}>Display</b> Space Grotesk 700</div>
+        <div style={{ color: sub }}><b style={{ color: ink }}>Mono</b> JetBrains Mono</div>
+        <div style={{ color: sub }}><b style={{ color: ink }}>Mood</b> Swiss · precise</div>
+      </div>
+      <div className="divider" style={{ background: 'rgba(239,231,220,0.12)' }}></div>
+      <div className="ui">
+        <button className="btn" style={{ background: '#D9572E', color: '#FFF', borderRadius: '8px', fontFamily: "'Space Grotesk', sans-serif" }}>Get started</button>
+        <button className="btn-ghost" style={{ color: ink, border: '1px solid rgba(239,231,220,0.18)', borderRadius: '8px', fontFamily: "'Space Grotesk', sans-serif" }}>Console</button>
+        <div className="code" style={{ background: '#0e0b09', color: '#a99e8f', border: '1px solid rgba(239,231,220,0.08)', borderRadius: '8px' }}>
+          <span style={{ color: '#7FB5A6' }}>GET</span> /authorize?<span style={{ color: '#D9572E' }}>scope=openid</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Perch() {
+  const ink = '#ECE3D6', sub = '#9c8f7e';
+  return (
+    <div className="art" style={{ background: '#0d0a08', color: ink, fontFamily: "'Space Grotesk', sans-serif" }}>
+      <div className="markrow">
+        <MarkPerch size={60} />
+        <div className="wordmark">
+          <div className="name" style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, letterSpacing: '-0.04em' }}>id_nest</div>
+          <div className="tag" style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.1em' }}>// auth for builders</div>
+        </div>
+      </div>
+      <Swatch palette={[
+        { hex: '#E8643C', on: '#0d0a08' },
+        { hex: '#3DBF8B', on: '#0d0a08' },
+        { hex: '#ECE3D6', on: '#0d0a08' },
+        { hex: '#1c1611', on: '#ECE3D6' },
+        { hex: '#0d0a08', on: '#9c8f7e' },
+      ]} />
+      <div className="specimen">
+        <div className="big" style={{ letterSpacing: '-0.03em' }}>Ship login<br/>before lunch.</div>
+        <div className="body" style={{ color: sub, fontFamily: "'JetBrains Mono', monospace", fontSize: '12.5px' }}>JetBrains Mono leads. Space Grotesk for headlines. Terminal-warm. Talks to engineers in their own typeface.</div>
+      </div>
+      <div className="meta">
+        <div style={{ color: sub }}><b style={{ color: ink }}>Display</b> Space Grotesk</div>
+        <div style={{ color: sub }}><b style={{ color: ink }}>Lead</b> JetBrains Mono 700</div>
+        <div style={{ color: sub }}><b style={{ color: ink }}>Mood</b> terminal · warm</div>
+      </div>
+      <div className="divider" style={{ background: 'rgba(236,227,214,0.1)' }}></div>
+      <div className="ui">
+        <button className="btn" style={{ background: '#E8643C', color: '#0d0a08', fontFamily: "'JetBrains Mono', monospace", borderRadius: '8px' }}>$ npm i idnest</button>
+        <div className="code" style={{ background: '#000', color: '#9c8f7e', border: '1px solid rgba(236,227,214,0.08)', borderRadius: '8px' }}>
+          <span style={{ color: '#3DBF8B' }}>✓</span> session verified <span className="c">— 14ms</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <DesignCanvas>
+    <DCSection id="identity" title="ID Nest — Identity Directions" subtitle="Three takes on a warm, dark-first, dev-forward identity. Pick one (or mix) and I'll build the full system.">
+      <DCArtboard id="roost" label="A · Roost — warm & woven" width={460} height={640}><Roost /></DCArtboard>
+      <DCArtboard id="keystone" label="B · Keystone — Swiss & precise" width={460} height={640}><Keystone /></DCArtboard>
+      <DCArtboard id="perch" label="C · Perch — dev-forward & mono" width={460} height={640}><Perch /></DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+</script>
+</body>
+</html>

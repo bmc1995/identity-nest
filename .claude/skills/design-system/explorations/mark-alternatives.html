@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ID Nest — Logo Mark Alternatives</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Hanken Grotesk', sans-serif; background: #100b09; }
+  .card { width: 100%; height: 100%; background: #1c1611; display: flex; flex-direction: column; align-items: center; padding: 26px 20px 22px; gap: 16px; }
+  .tile { width: 132px; height: 132px; border-radius: 22px; background: #241b15; border: 1px solid rgba(239,231,220,0.1); display: grid; place-items: center; box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset; }
+  .meta { text-align: center; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .mname { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; color: #FBF6EE; letter-spacing: -0.01em; }
+  .mtag { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #D9572E; }
+  .mdesc { font-size: 12px; line-height: 1.45; color: #a99e8f; max-width: 30ch; margin: 0 auto; }
+  .lockup { display: flex; align-items: center; gap: 9px; padding-top: 14px; margin-top: auto; border-top: 1px solid rgba(239,231,220,0.07); width: 100%; justify-content: center; }
+  .lockup .wm { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; color: #EFE7DC; letter-spacing: -0.02em; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel">
+const { DesignCanvas, DCSection, DCArtboard } = window;
+const CLAY = '#D9572E', EGG = '#F4E3D0', CLAY2 = '#E5703F';
+
+/* A. Keyhole egg — current */
+const Keyhole = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
+    <path d="M32 8c11 0 19 13 19 27 0 12-8 21-19 21S13 47 13 35C13 21 21 8 32 8Z" fill={EGG}/>
+    <circle cx="32" cy="30" r="6" fill={CLAY}/>
+    <rect x="29.5" y="33" width="5" height="13" rx="2.5" fill={CLAY}/>
+  </svg>
+);
+/* B. Fingerprint egg */
+const Fingerprint = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none" stroke={CLAY} strokeWidth="2.4" strokeLinecap="round">
+    <path d="M32 7.5c10.4 0 17.8 12.4 17.8 25.8 0 11.9-7.4 20.7-17.8 20.7S14.2 45.2 14.2 33.3C14.2 19.9 21.6 7.5 32 7.5Z" strokeWidth="3"/>
+    <path d="M21 38c-1.2-10 5-16 11-16s12.2 6 11 16"/>
+    <path d="M25.5 40c-1-7 2.7-11 6.5-11s7.5 4 6.5 11"/>
+    <path d="M30 41.5c-.6-4 .8-6.5 2-6.5s2.6 2.5 2 6.5"/>
+  </svg>
+);
+/* C. Woven nest + egg */
+const Nest = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
+    <ellipse cx="32" cy="33" rx="9" ry="11" fill={EGG}/>
+    <path d="M7 35c0 13 11 21 25 21s25-8 25-21" stroke={CLAY} strokeWidth="3.4" strokeLinecap="round"/>
+    <path d="M12 37c0 10 9 16 20 16s20-6 20-16" stroke={CLAY} strokeWidth="2.6" strokeLinecap="round" opacity="0.55"/>
+    <path d="M6 35q6-4 13-2M58 35q-6-4-13-2" stroke={CLAY} strokeWidth="2.6" strokeLinecap="round"/>
+    <path d="M20 32q5 3 12 3t12-3" stroke={CLAY} strokeWidth="2.2" strokeLinecap="round" opacity="0.42"/>
+  </svg>
+);
+/* D. Perch — minimal bird */
+const Perch = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
+    <path d="M13 43l12-14 6 7 7-11 13 18" stroke={CLAY} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="47" cy="21" r="3.8" fill={EGG}/>
+  </svg>
+);
+/* E. Concentric nest — top-down */
+const Concentric = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none" strokeLinecap="round">
+    <path d="M13 27a20 20 0 0 1 38 0" stroke={CLAY} strokeWidth="3"/>
+    <path d="M51 37a20 20 0 0 1-38 0" stroke={CLAY} strokeWidth="3"/>
+    <path d="M21 28.5a11.5 11.5 0 0 1 22 0" stroke={CLAY} strokeWidth="2.5" opacity="0.55"/>
+    <path d="M43 35.5a11.5 11.5 0 0 1-22 0" stroke={CLAY} strokeWidth="2.5" opacity="0.55"/>
+    <ellipse cx="32" cy="32" rx="5" ry="6" fill={EGG}/>
+  </svg>
+);
+/* F. Shelter — dome over egg */
+const Shelter = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
+    <path d="M11 40a21 21 0 0 1 42 0" stroke={CLAY} strokeWidth="3.6" strokeLinecap="round"/>
+    <path d="M18 41a14 14 0 0 1 28 0" stroke={CLAY} strokeWidth="2.4" strokeLinecap="round" opacity="0.4"/>
+    <ellipse cx="32" cy="42" rx="7" ry="9" fill={EGG}/>
+  </svg>
+);
+/* G. Cradle — two arms holding egg */
+const Cradle = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none" strokeLinecap="round">
+    <path d="M15 24c-5 9-3 20 7 25" stroke={CLAY} strokeWidth="3.6"/>
+    <path d="M49 24c5 9 3 20-7 25" stroke={CLAY} strokeWidth="3.6"/>
+    <ellipse cx="32" cy="33" rx="7.5" ry="9.5" fill={EGG}/>
+  </svg>
+);
+/* H. Seam egg — two halves nesting */
+const Seam = ({s=84}) => (
+  <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
+    <path d="M32 8c11 0 19 13 19 27 0 12-8 21-19 21S13 47 13 35C13 21 21 8 32 8Z" fill={EGG}/>
+    <path d="M32 8c-7 9-7 18 0 27s7 18 0 21" stroke={CLAY} strokeWidth="3.2" strokeLinecap="round"/>
+  </svg>
+);
+
+const MARKS = [
+  { id:'keyhole', C:Keyhole, name:'Keyhole Egg', tag:'current', desc:'The egg holds the identity; the keyhole grants access. Literal, secure.' },
+  { id:'fingerprint', C:Fingerprint, name:'Fingerprint Egg', tag:'identity + nest', desc:'A fingerprint nested inside the egg. Identity made literal — biometric warmth.' },
+  { id:'nest', C:Nest, name:'Woven Nest', tag:'most literal', desc:'A side-on woven nest cradling an egg. The friendliest, most organic read.' },
+  { id:'perch', C:Perch, name:'Perch', tag:'minimal bird', desc:'A bird in flight from a single stroke. Light, fast, dev-forward.' },
+  { id:'concentric', C:Concentric, name:'Concentric Nest', tag:'top-down', desc:'A nest seen from above — woven rings around a central egg. Abstract, scalable.' },
+  { id:'shelter', C:Shelter, name:'Shelter', tag:'home + egg', desc:'A dome sheltering the egg. Safety and belonging over literal nest-iness.' },
+  { id:'cradle', C:Cradle, name:'Cradle', tag:'held safely', desc:'Two arms cradling the egg. Care and protection, stripped to two strokes.' },
+  { id:'seam', C:Seam, name:'Seam Egg', tag:'secure halves', desc:'An egg with a single seam — two halves nesting together. Quiet, geometric.' },
+];
+
+function Card({ mark }) {
+  const M = mark.C;
+  return (
+    <div className="card">
+      <div className="tile"><M s={84} /></div>
+      <div className="meta">
+        <div className="mname">{mark.name}</div>
+        <div className="mtag">{mark.tag}</div>
+        <div className="mdesc">{mark.desc}</div>
+      </div>
+      <div className="lockup"><M s={26} /><span className="wm">ID Nest</span></div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <DesignCanvas>
+    <DCSection id="marks" title="ID Nest — Mark Alternatives" subtitle="Eight directions on the nest / egg / identity metaphor. All share the warm clay-on-cream palette and the brand's line work. Open any fullscreen to compare; tell me which to develop.">
+      {MARKS.map(m => (
+        <DCArtboard key={m.id} id={m.id} label={m.name} width={340} height={388}><Card mark={m} /></DCArtboard>
+      ))}
+    </DCSection>
+  </DesignCanvas>
+);
+</script>
+</body>
+</html>

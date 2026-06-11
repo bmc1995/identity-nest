@@ -1,0 +1,14 @@
+/* Shared styles for foundation specimen cards. Linked alongside styles.css. */
+body { padding: 22px 24px; background: var(--bg-base); color: var(--text-body); }
+.card-wrap { display: flex; flex-direction: column; gap: 14px; }
+.swrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.sw { display: flex; flex-direction: column; gap: 6px; }
+.sw .chip { width: 96px; height: 54px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); }
+.sw .nm { font-family: var(--font-mono); font-size: 11px; color: var(--text-strong); }
+.sw .hx { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
+.stack { display: flex; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-subtle); }
+.stack > div { flex: 1; height: 64px; display: flex; align-items: flex-end; padding: 7px; }
+.stack .t { font-family: var(--font-mono); font-size: 10px; }
+.lbl { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.04em; }
+.specimen-row { display: flex; align-items: baseline; gap: 14px; }
+.specimen-row .meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); white-space: nowrap; }
