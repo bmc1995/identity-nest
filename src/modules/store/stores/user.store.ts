@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -62,6 +66,13 @@ export class UserStore {
       familyName?: string | null;
     } = {},
   ): Promise<StoredUser> {
+    if (!(await this.tenantRepo.findBy({ id: tenantId })).length) {
+      throw new NotFoundException({ error: 'tenant_not_found' });
+    }
+    if (await this.findByEmailInTenant(tenantId, email)) {
+      throw new ConflictException({ error: 'tenant_user_email_exists' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
     const user = this.repo.create({
       tenant: { id: tenantId } as Tenant,
@@ -72,6 +83,7 @@ export class UserStore {
       familyName: options.familyName ?? null,
       passwordHash,
     });
+
     const saved = await this.repo.save(user);
     return this.toStored(saved);
   }
@@ -81,6 +93,7 @@ export class UserStore {
       where: { id },
       relations: ['tenant'],
     });
+
     return user ? this.toStored(user) : undefined;
   }
 
@@ -89,6 +102,7 @@ export class UserStore {
       where: { email: email.toLowerCase() },
       relations: ['tenant'],
     });
+
     return user ? this.toStored(user) : undefined;
   }
 
@@ -101,6 +115,7 @@ export class UserStore {
       where: { email: email.toLowerCase(), tenant: { id: tenantId } },
       relations: ['tenant'],
     });
+
     return user ? this.toStored(user) : undefined;
   }
 
@@ -110,6 +125,7 @@ export class UserStore {
       relations: ['tenant'],
       order: { createdAt: 'DESC' },
     });
+
     return users.map((u) => this.toStored(u));
   }
 
@@ -130,7 +146,8 @@ export class UserStore {
     }
 
     if (patch.email !== undefined) user.email = patch.email.toLowerCase();
-    if (patch.emailVerified !== undefined) user.emailVerified = patch.emailVerified;
+    if (patch.emailVerified !== undefined)
+      user.emailVerified = patch.emailVerified;
     if (patch.nickname !== undefined) user.nickname = patch.nickname;
     if (patch.givenName !== undefined) user.givenName = patch.givenName;
     if (patch.familyName !== undefined) user.familyName = patch.familyName;
