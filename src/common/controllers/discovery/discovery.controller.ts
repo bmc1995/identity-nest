@@ -14,7 +14,7 @@ export class DiscoveryController {
       token_endpoint: `${issuer}/oidc/token`,
       userinfo_endpoint: `${issuer}/oidc/userinfo`,
       revocation_endpoint: `${issuer}/oidc/revoke`,
-      // TODO end_session_endpoint: `ex: ${issuer}/oidc/oauth2/sessions/logout`
+      end_session_endpoint: `${issuer}/oidc/sessions/logout`,
       jwks_uri: `${issuer}/oidc/jwks.json`,
       registration_endpoint: `${issuer}/connect/register`,
       response_types_supported: ['code'],

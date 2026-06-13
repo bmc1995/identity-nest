@@ -48,16 +48,29 @@ export class AuthorizeController {
     this.logger.log(`Authorize request for client_id=${clientId}`);
 
     // Validate required parameters
-    if (!responseType || !clientId || !redirectUri || !scope || !codeChallenge) {
+    if (
+      !responseType ||
+      !clientId ||
+      !redirectUri ||
+      !scope ||
+      !codeChallenge
+    ) {
       throw new HttpException(
-        { error: 'invalid_request', error_description: 'Missing required parameters: response_type, client_id, redirect_uri, scope, code_challenge' },
+        {
+          error: 'invalid_request',
+          error_description:
+            'Missing required parameters: response_type, client_id, redirect_uri, scope, code_challenge',
+        },
         HttpStatus.BAD_REQUEST,
       );
     }
 
     if (responseType !== 'code') {
       throw new HttpException(
-        { error: 'unsupported_response_type', error_description: 'Only response_type=code is supported' },
+        {
+          error: 'unsupported_response_type',
+          error_description: 'Only response_type=code is supported',
+        },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -67,7 +80,10 @@ export class AuthorizeController {
     if (!client || client.status !== 'active') {
       this.logger.warn(`Invalid or inactive client: ${clientId}`);
       throw new HttpException(
-        { error: 'invalid_client', error_description: 'Unknown or inactive client' },
+        {
+          error: 'invalid_client',
+          error_description: 'Unknown or inactive client',
+        },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -75,7 +91,10 @@ export class AuthorizeController {
     // Validate redirect_uri
     if (!client.redirectUris.includes(redirectUri)) {
       throw new HttpException(
-        { error: 'invalid_request', error_description: 'Redirect URI not registered for this client' },
+        {
+          error: 'invalid_request',
+          error_description: 'Redirect URI not registered for this client',
+        },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -84,12 +103,24 @@ export class AuthorizeController {
       codeChallengeMethod = PkceMethod.PLAIN;
     }
     if (!['S256', 'plain'].includes(codeChallengeMethod)) {
-      this.redirectWithError(res, redirectUri, 'invalid_request', 'Unsupported code_challenge_method', state);
+      this.redirectWithError(
+        res,
+        redirectUri,
+        'invalid_request',
+        'Unsupported code_challenge_method',
+        state,
+      );
       return;
     }
     // PKCE required check
     if (client.requirePkce && codeChallengeMethod === 'plain') {
-      this.redirectWithError(res, redirectUri, 'invalid_request', 'S256 code_challenge_method is required', state);
+      this.redirectWithError(
+        res,
+        redirectUri,
+        'invalid_request',
+        'S256 code_challenge_method is required',
+        state,
+      );
       return;
     }
 
@@ -110,32 +141,45 @@ export class AuthorizeController {
             // Check if all requested scopes are already granted
             const grantedScopes = new Set(grant.scope.split(' '));
             const requestedScopes = scope.split(' ');
-            const allGranted = requestedScopes.every((s) => grantedScopes.has(s));
+            const allGranted = requestedScopes.every((s) =>
+              grantedScopes.has(s),
+            );
 
             if (allGranted) {
-              this.logger.log(`Existing grant covers requested scopes for user=${session.userId}, skipping consent`);
+              this.logger.log(
+                `Existing grant covers requested scopes for user=${session.userId}, skipping consent`,
+              );
               // Skip consent — issue code immediately
-              const interaction = await this.interactionStore.create('consent', {
-                client_id: clientId,
-                redirect_uri: redirectUri,
-                response_type: responseType,
-                scope,
-                state,
-                nonce,
-                code_challenge: codeChallenge,
-                code_challenge_method: codeChallengeMethod,
-              });
-              const currInteraction = await this.interactionStore.update(interaction.uid, {
-                userId: session.userId,
-              });
-              const redirectUrl = await this.oidcService.completeConsent(currInteraction);
+              const interaction = await this.interactionStore.create(
+                'consent',
+                {
+                  client_id: clientId,
+                  redirect_uri: redirectUri,
+                  response_type: responseType,
+                  scope,
+                  state,
+                  nonce,
+                  code_challenge: codeChallenge,
+                  code_challenge_method: codeChallengeMethod,
+                },
+              );
+              const currInteraction = await this.interactionStore.update(
+                interaction.uid,
+                {
+                  userId: session.userId,
+                },
+              );
+              const redirectUrl =
+                await this.oidcService.completeConsent(currInteraction);
               await this.interactionStore.delete(currInteraction.uid);
               return res.redirect(303, redirectUrl);
             }
           }
 
           // Has session but needs consent for new scopes
-          this.logger.log(`Session valid for user=${session.userId}, requesting consent for new scopes`);
+          this.logger.log(
+            `Session valid for user=${session.userId}, requesting consent for new scopes`,
+          );
           const interaction = await this.interactionStore.create('consent', {
             client_id: clientId,
             redirect_uri: redirectUri,
@@ -168,6 +212,26 @@ export class AuthorizeController {
     });
 
     return res.redirect(303, `/interaction/${interaction.uid}`);
+  }
+
+  @Get('/sessions/logout')
+  private async endSession(@Req() req: Request, @Res() res: Response) {
+    // Check for existing session
+    const cookieName = this.sessions.getCookieName();
+    const signedSessionId = req.cookies?.[cookieName];
+    if (signedSessionId) {
+      const sessionId = this.sessions.unsign(signedSessionId);
+      if (sessionId) {
+        const session = await this.sessions.validate(sessionId);
+        const grants = await this.grantStore.findByUser(session.userId);
+        if (grants.length) {
+          grants.forEach((grant) => {
+            this.grantStore.revoke(grant.id);
+          });
+        }
+        this.sessions.destroy(sessionId);
+      }
+    }
   }
 
   private redirectWithError(
