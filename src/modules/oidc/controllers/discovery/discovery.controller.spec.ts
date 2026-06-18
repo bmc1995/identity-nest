@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DiscoveryController } from './discovery.controller';
-import { JwksService } from '../../crypto/jwks/jwks.service';
+import { JwksService } from '../../../../common/crypto/jwks/jwks.service';
 
 describe('DiscoveryController', () => {
   let controller: DiscoveryController;
@@ -26,5 +26,27 @@ describe('DiscoveryController', () => {
     expect(config.jwks_uri).toContain('jwks.json');
     expect(config.response_types_supported).toContain('code');
     expect(config.id_token_signing_alg_values_supported).toContain('RS256');
+  });
+
+  it('advertises every supported client authentication method', async () => {
+    const config = await controller.openidConfig();
+    expect(config.token_endpoint_auth_methods_supported).toEqual([
+      'client_secret_basic',
+      'client_secret_post',
+      'none',
+    ]);
+    expect(config.revocation_endpoint_auth_methods_supported).toEqual([
+      'client_secret_basic',
+      'client_secret_post',
+      'none',
+    ]);
+  });
+
+  it('only advertises claims the tokens actually carry', async () => {
+    const config = await controller.openidConfig();
+    expect(config.claims_supported).toEqual(
+      expect.arrayContaining(['sub', 'preferred_username', 'email', 'email_verified']),
+    );
+    expect(config.claims_supported).not.toContain('name');
   });
 });

@@ -9,6 +9,7 @@ import { InteractionController } from './controllers/interaction.controller';
 import { TokenController } from './controllers/token.controller';
 import { UserinfoController } from './controllers/userinfo.controller';
 import { RevokeController } from './controllers/revoke.controller';
+import { DiscoveryController } from './controllers/discovery/discovery.controller';
 import { StoreModule } from '../store/store.module';
 import { JwksService } from '../../common/crypto/jwks/jwks.service';
 import { JwtService } from '../../common/crypto/jwt/jwt.service';
@@ -23,6 +24,7 @@ import { UserModule } from '../user/user.module';
     TokenController,
     UserinfoController,
     RevokeController,
+    DiscoveryController,
   ],
   providers: [
     PkceService,
