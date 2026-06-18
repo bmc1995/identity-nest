@@ -10,14 +10,19 @@ import { TokenController } from './controllers/token.controller';
 import { UserinfoController } from './controllers/userinfo.controller';
 import { RevokeController } from './controllers/revoke.controller';
 import { DiscoveryController } from './controllers/discovery/discovery.controller';
+import { ClientRegistrationController } from './controllers/client-registration.controller';
+import { DynamicClientRegistrationService } from './services/dynamic-client-registration/dynamic-client-registration.service';
+import { RegistrationAccessTokenGuard } from './guards/registration-access-token.guard';
+import { RegistrationRateLimitGuard } from './guards/registration-rate-limit.guard';
 import { StoreModule } from '../store/store.module';
 import { JwksService } from '../../common/crypto/jwks/jwks.service';
 import { JwtService } from '../../common/crypto/jwt/jwt.service';
 import { AuthModule } from '../auth/auth.module';
 import { UserModule } from '../user/user.module';
+import { ClientModule } from '../client/client.module';
 
 @Module({
-  imports: [StoreModule, AuthModule, UserModule],
+  imports: [StoreModule, AuthModule, UserModule, ClientModule],
   controllers: [
     AuthorizeController,
     InteractionController,
@@ -25,6 +30,7 @@ import { UserModule } from '../user/user.module';
     UserinfoController,
     RevokeController,
     DiscoveryController,
+    ClientRegistrationController,
   ],
   providers: [
     PkceService,
@@ -34,6 +40,9 @@ import { UserModule } from '../user/user.module';
     OidcService,
     JwksService,
     JwtService,
+    DynamicClientRegistrationService,
+    RegistrationAccessTokenGuard,
+    RegistrationRateLimitGuard,
   ],
   exports: [OidcService, PkceService, TokenDenylistService],
 })

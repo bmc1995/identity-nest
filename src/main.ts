@@ -36,6 +36,10 @@ async function bootstrap() {
       { type: 'apiKey', in: 'cookie', name: sessionCookieName },
       sessionCookieName,
     )
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'token' },
+      'initial-access-token',
+    )
     .addTag('clients', 'Admin: register and manage OAuth/OIDC clients')
     .addTag('users', 'Admin: manage user accounts')
     .addTag('tenants', 'Admin: manage tenants')
