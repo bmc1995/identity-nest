@@ -10,6 +10,29 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     httpsOptions: httpsOptions,
   });
+
+  // Honour X-Forwarded-* from a trusted proxy so `req.ip` is the real client
+  // (used for per-IP rate limiting) rather than the proxy hop. Off by default;
+  // set TRUST_PROXY to a hop count (e.g. `1`), `true`, or a subnet/preset that
+  // matches your deployment. Leaving it unset trusts no proxy (Express default).
+  const trustProxy = process.env.TRUST_PROXY?.trim();
+  if (trustProxy) {
+    const hops = Number(trustProxy);
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .set(
+        'trust proxy',
+        trustProxy === 'true'
+          ? true
+          : trustProxy === 'false'
+            ? false
+            : Number.isInteger(hops)
+              ? hops
+              : trustProxy,
+      );
+  }
+
   const corsOrigins = (
     process.env.CORS_ORIGINS?.split(',')?.map((origin) => origin.trim()).filter(Boolean) ??
     ["http://localhost:8080", "http://0.0.0.0:5173", "http://localhost:5173", "https://127.0.0.1:5173"]

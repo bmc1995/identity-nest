@@ -25,7 +25,8 @@ const DEFAULT_WINDOW_SECONDS = 3600; // 1 hour
  * the limit holds across instances.
  *
  * Note: the client IP comes from `req.ip`; behind a proxy/load balancer set
- * Express `trust proxy` so this reflects the real caller rather than the hop.
+ * the `TRUST_PROXY` env var (wired to Express `trust proxy` in main.ts) so this
+ * reflects the real caller rather than the proxy hop.
  */
 @Injectable()
 export class RegistrationRateLimitGuard implements CanActivate {
