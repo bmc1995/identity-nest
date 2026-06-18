@@ -2,7 +2,9 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsIn,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -117,4 +119,99 @@ export class ClientRegistrationDto {
   @IsOptional()
   @IsString()
   software_statement?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  software_version?: string;
+
+  // OpenID Connect Dynamic Client Registration 1.0 §2 members. Declared so the
+  // forbidNonWhitelisted pipe does not 400 a compliant request; not acted on.
+
+  @ApiPropertyOptional({ enum: ['public', 'pairwise'] })
+  @IsOptional()
+  @IsString()
+  subject_type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sector_identifier_uri?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id_token_signed_response_alg?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id_token_encrypted_response_alg?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id_token_encrypted_response_enc?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  userinfo_signed_response_alg?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  userinfo_encrypted_response_alg?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  userinfo_encrypted_response_enc?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  request_object_signing_alg?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  request_object_encryption_alg?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  request_object_encryption_enc?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  token_endpoint_auth_signing_alg?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  default_max_age?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  require_auth_time?: boolean;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  default_acr_values?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  initiate_login_uri?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  request_uris?: string[];
 }
