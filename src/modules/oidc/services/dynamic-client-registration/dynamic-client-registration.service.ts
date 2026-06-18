@@ -56,8 +56,14 @@ export class DynamicClientRegistrationService {
     dto: ClientRegistrationDto,
   ): Promise<ClientRegistrationResponse> {
     const authMethod = dto.token_endpoint_auth_method ?? 'client_secret_basic';
-    const grantTypes = dto.grant_types ?? ['authorization_code'];
-    const responseTypes = dto.response_types ?? ['code'];
+    // Treat an empty array like an omitted field so the RFC 7591 defaults apply
+    // (a `?? []` would otherwise persist a client with no usable grants).
+    const grantTypes = dto.grant_types?.length
+      ? dto.grant_types
+      : ['authorization_code'];
+    const responseTypes = dto.response_types?.length
+      ? dto.response_types
+      : ['code'];
 
     this.assertSupported(
       authMethod,

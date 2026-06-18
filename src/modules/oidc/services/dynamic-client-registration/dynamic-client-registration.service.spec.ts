@@ -129,4 +129,21 @@ describe('DynamicClientRegistrationService', () => {
     await expect(service.register({})).rejects.toThrow(BadRequestException);
     expect(register).not.toHaveBeenCalled();
   });
+
+  it('treats empty grant_types/response_types as omitted and applies defaults', async () => {
+    register.mockResolvedValue(baseClient());
+
+    await service.register({
+      redirect_uris: ['https://app.example.com/cb'],
+      grant_types: [],
+      response_types: [],
+    });
+
+    expect(register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        grantTypes: ['authorization_code'],
+        responseTypes: ['code'],
+      }),
+    );
+  });
 });
