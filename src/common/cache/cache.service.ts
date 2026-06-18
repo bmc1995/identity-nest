@@ -43,12 +43,26 @@ export class CacheService {
    * Increment a fixed-window counter and return the new value. The window's
    * TTL is set on the first hit only, so the counter resets `windowSeconds`
    * after that first request rather than sliding on every call.
+   *
+   * INCR and EXPIRE run in a single Lua script so they are atomic: the counter
+   * can never be left without a TTL (which would otherwise pin a key forever if
+   * the process died between the two commands).
    */
   async incrementInWindow(key: string, windowSeconds: number): Promise<number> {
-    const count = await this.redis.incr(key);
-    if (count === 1) {
-      await this.redis.expire(key, windowSeconds);
-    }
-    return count;
+    const count = await this.redis.eval(
+      CacheService.INCREMENT_IN_WINDOW_SCRIPT,
+      1,
+      key,
+      String(windowSeconds),
+    );
+    return count as number;
   }
+
+  private static readonly INCREMENT_IN_WINDOW_SCRIPT = `
+    local count = redis.call('INCR', KEYS[1])
+    if count == 1 then
+      redis.call('EXPIRE', KEYS[1], ARGV[1])
+    end
+    return count
+  `;
 }
