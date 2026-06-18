@@ -52,4 +52,10 @@ describe('RegistrationRateLimitGuard', () => {
       600,
     );
   });
+
+  it('fails open (allows) when the cache backend errors', async () => {
+    cache.incrementInWindow.mockRejectedValue(new Error('redis down'));
+    await expect(guard.canActivate(ctx())).resolves.toBe(true);
+    expect(setHeader).not.toHaveBeenCalled();
+  });
 });

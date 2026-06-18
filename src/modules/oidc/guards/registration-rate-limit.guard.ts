@@ -49,24 +49,36 @@ export class RegistrationRateLimitGuard implements CanActivate {
     const ip = request.ip || request.socket?.remoteAddress || 'unknown';
     const key = `ratelimit:oidc-register:${ip}`;
 
-    const count = await this.cache.incrementInWindow(key, windowSeconds);
-    if (count > limit) {
-      const retryAfter = Math.max(await this.cache.ttl(key), 1);
-      response.setHeader('Retry-After', String(retryAfter));
-      this.logger.warn(
-        `Registration rate limit exceeded for ip=${ip} (${count}/${limit})`,
+    let count: number;
+    let retryAfter: number;
+    try {
+      count = await this.cache.incrementInWindow(key, windowSeconds);
+      if (count <= limit) {
+        return true;
+      }
+      retryAfter = Math.max(await this.cache.ttl(key), 1);
+    } catch (err) {
+      // Fail open: the limiter is defence-in-depth on top of the initial
+      // access token guard, so a Redis outage must not take registration down.
+      this.logger.error(
+        `Rate-limit check failed (allowing request): ${
+          err instanceof Error ? err.message : err
+        }`,
       );
-      throw new HttpException(
-        {
-          error: 'too_many_requests',
-          error_description:
-            'Registration rate limit exceeded. Try again later.',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+      return true;
     }
 
-    return true;
+    response.setHeader('Retry-After', String(retryAfter));
+    this.logger.warn(
+      `Registration rate limit exceeded for ip=${ip} (${count}/${limit})`,
+    );
+    throw new HttpException(
+      {
+        error: 'too_many_requests',
+        error_description: 'Registration rate limit exceeded. Try again later.',
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   /** Parse a positive integer env var, falling back to `fallback` if unset/invalid. */
