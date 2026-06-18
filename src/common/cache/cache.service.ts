@@ -38,4 +38,17 @@ export class CacheService {
   async ttl(key: string): Promise<number> {
     return this.redis.ttl(key);
   }
+
+  /**
+   * Increment a fixed-window counter and return the new value. The window's
+   * TTL is set on the first hit only, so the counter resets `windowSeconds`
+   * after that first request rather than sliding on every call.
+   */
+  async incrementInWindow(key: string, windowSeconds: number): Promise<number> {
+    const count = await this.redis.incr(key);
+    if (count === 1) {
+      await this.redis.expire(key, windowSeconds);
+    }
+    return count;
+  }
 }
