@@ -20,4 +20,5 @@
     "types": ["node", "jest", "supertest"]
   },
   "include": ["src/**/*"],
+  "exclude": ["docs"]
 }

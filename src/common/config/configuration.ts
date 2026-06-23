@@ -19,11 +19,15 @@ export interface SessionConfig {
   ttlMs: number;
   cookieSecret: string;
 }
+export interface RegistrationConfig {
+  initialAccessToken: string;
+}
 
 export interface AppConfig {
   database: DatabaseConfig;
   redis: RedisConfig;
   session: SessionConfig;
+  registration: RegistrationConfig;
 }
 
 export default (): AppConfig => ({
@@ -46,4 +50,7 @@ export default (): AppConfig => ({
     ttlMs: parseInt(process.env.SESSION_TTL_MS ?? '3600000', 10),
     cookieSecret: process.env.COOKIE_SECRET ?? 'dev-cookie-secret-change-in-production',
   },
+  registration: {
+    initialAccessToken: process.env.OIDC_REGISTRATION_ACCESS_TOKEN ?? undefined
+  }
 });

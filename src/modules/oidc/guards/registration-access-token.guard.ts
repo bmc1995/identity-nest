@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { createHash, timingSafeEqual } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { RegistrationConfig } from '../../../common/config/configuration';
 
 /**
  * Gates the RFC 7591 dynamic client registration endpoint with an initial
@@ -21,10 +23,14 @@ import { createHash, timingSafeEqual } from 'crypto';
  */
 @Injectable()
 export class RegistrationAccessTokenGuard implements CanActivate {
+  constructor(private config: ConfigService) {}
   private readonly logger = new Logger(RegistrationAccessTokenGuard.name);
+  private readonly registrationConfig = this.config.getOrThrow<RegistrationConfig>("registration");
 
   canActivate(context: ExecutionContext): boolean {
-    const configured = process.env.OIDC_REGISTRATION_ACCESS_TOKEN?.trim();
+    this.logger.debug(this.registrationConfig.initialAccessToken)
+    this.logger.debug(process.env);
+    const configured = process.env.OIDC_REGISTRATION_ACCESS_TOKEN?.trim() || this.registrationConfig.initialAccessToken;
     if (!configured) {
       this.logger.warn(
         'Dynamic client registration is disabled: OIDC_REGISTRATION_ACCESS_TOKEN is not set',

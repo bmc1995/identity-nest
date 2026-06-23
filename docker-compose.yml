@@ -43,11 +43,14 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-idp:}
       OIDC_ISSUER: ${OIDC_ISSUER:-https://localhost:3000}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,https://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,https://localhost:5173,https://localhost:5177}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-idp_session}
       SESSION_TTL_MS: ${SESSION_TTL_MS:-3600000}
       COOKIE_SECRET: ${COOKIE_SECRET:-dev-cookie-secret-change-in-production}
       TENANT_ENCRYPTION_KEY: ${TENANT_ENCRYPTION_KEY:-dev-key-change-in-production}
+      OIDC_REGISTRATION_ACCESS_TOKEN: ${OIDC_REGISTRATION_ACCESS_TOKEN:-dev-registration-token-change-me}
+      OIDC_REGISTRATION_RATE_LIMIT: ${OIDC_REGISTRATION_RATE_LIMIT:-10}
+      OIDC_REGISTRATION_RATE_WINDOW_SECONDS: ${OIDC_REGISTRATION_RATE_WINDOW_SECONDS:-3600}
     depends_on:
       db:
         condition: service_healthy

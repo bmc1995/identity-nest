@@ -27,12 +27,15 @@ export class DiscoveryController {
         registration_endpoint: `${issuer}/oidc/register`,
       }),
       response_types_supported: [
-        'code',
+        'code', // Authorization Code Flow
+        'id_token', //TODO // Implicit Flow
+        'id_token token', //TODO // Implicit Flow
+        'none',
         // Unsupported — the authorize endpoint only implements the code flow.
-        // Implicit/hybrid response types are intentionally not offered:
-        // 'id_token',
-        // 'token',
-        // 'code id_token',
+        // Implicit/hybrid response types not currently offered:
+        // 'code token', //Hybrid Flow
+        // 'code id_token', //Hybrid Flow
+        // 'code id_token token', //TODO // Hybrid Flow
       ],
       response_modes_supported: ['query'],
       grant_types_supported: [

@@ -39,7 +39,7 @@ async function bootstrap() {
   )
   // Pass the allowlist as `origin`; calling enableCors with a bare array makes
   // the cors lib read a missing `.origin` and fall back to reflecting any origin.
-  app.enableCors({ origin: corsOrigins });
+  app.enableCors(corsOrigins);
   app.use(cookieParser());
   app.use(json());
   app.use(urlencoded({ extended: true }));
