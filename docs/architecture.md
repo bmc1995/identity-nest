@@ -20,8 +20,9 @@ Identity Nest is a single NestJS application that acts as an **OAuth 2.0 Authori
 | Language | TypeScript 6 | Compiled with `ts-loader`; tests via `ts-jest` |
 | Persistent store | PostgreSQL 17 | TypeORM 0.3, `autoLoadEntities`, `synchronize` ON in non-prod |
 | Cache / ephemeral store | Redis 7 | `ioredis`, keys namespaced by `REDIS_KEY_PREFIX` (default `idp:`) |
-| JOSE / crypto | `jose` 6 | RS256 key generation, JWT sign/verify, JWKS export |
-| Password / secret hashing | `bcrypt` (cost 12) | User passwords and client secrets |
+| JOSE / crypto | `jose` 6 | RS256 key generation, JWT sign/verify, JWKS export, client-assertion verification |
+| Password hashing | `bcrypt` (cost 12) | User passwords |
+| Client-secret encryption | AES-256-GCM (`ClientSecretCipher`) | Client secrets are sealed **reversibly** at rest (not hashed) so they can key `client_secret_jwt` HMAC verification; key derived via HKDF from `CLIENT_SECRET_ENC_KEY`/`TENANT_ENCRYPTION_KEY` |
 | Validation | `class-validator` + `class-transformer` | Global `ValidationPipe` (whitelist + forbid non-whitelisted + transform) |
 | API docs | `@nestjs/swagger` | Served at `/api/docs`, JSON at `/api/docs/openapi.json` |
 | Config | `@nestjs/config` | Typed loader in `src/common/config/configuration.ts` |
@@ -87,14 +88,15 @@ Cross-cutting code lives in `src/common/`: `crypto/` (JWKS, JWT, keygen),
 
 | Component | Responsibility |
 | --- | --- |
-| `AuthorizeController` | Validates `/authorize` params, resolves the client & redirect URI, checks PKCE policy, reuses an existing session/grant (skipping consent when scopes are already granted), and otherwise spawns a `login` or `consent` interaction. |
+| `AuthorizeController` | Validates `/authorize` params for the code, implicit, hybrid, and `none` response types, resolves the client & redirect URI, checks PKCE policy (code-bearing flows only) and `nonce`/`openid` (ID-token flows), resolves the `response_mode` (`query`/`fragment`), reuses an existing session/grant (skipping consent when scopes are already granted), and otherwise spawns a `login` or `consent` interaction. |
 | `InteractionController` | Renders and processes the server-rendered login/consent HTML pages; on login success issues a session cookie; on consent completes the flow. |
 | `TokenController` | Authenticates the client, then dispatches `authorization_code` and `refresh_token` grants to `OidcService`. |
 | `UserinfoController` | Bearer-guarded; returns claims scoped by the access token's `scope`. |
 | `RevokeController` | RFC 7009 revocation; authenticates the client and delegates to `OidcService.revokeToken`. |
-| `OidcService` | Core logic: `completeConsent` (grant + auth code + redirect), `exchangeCode` (PKCE verify + token minting), `refreshTokens`, `revokeToken`. |
+| `OidcService` | Core logic: `completeConsent` (grant + the artifacts the `response_type` calls for — auth code, access token, and/or ID token with `at_hash`/`c_hash` — assembled into a query or fragment redirect), `exchangeCode` (PKCE verify + token minting), `refreshTokens`, `revokeToken`. |
 | `PkceService` | Verifies `code_verifier` against the stored `code_challenge` (`S256` / `plain`). |
-| `ClientAuthenticatorService` | Resolves client credentials from `client_secret_basic` (Authorization header) or `client_secret_post` (body); validates the bcrypt secret. |
+| `ClientAuthenticatorService` | Resolves and verifies client credentials: `client_secret_basic`/`client_secret_post` (decrypt + constant-time compare), `client_secret_jwt`/`private_key_jwt` (RFC 7523 signed assertion — signature, `iss`/`sub`/`aud`/`exp`, single-use `jti`), or public `none`. Enforces that the method used matches the one the client registered. |
+| `ClientAssertionReplayService` | Records each accepted client-assertion `jti` in Redis until its `exp` so an assertion cannot be replayed. |
 | `TokenDenylistService` | Tracks revoked access-token `jti`s in Redis until their `exp`. |
 | `InteractionViewService` | Produces the self-contained login/consent HTML (with HTML escaping). |
 
@@ -103,7 +105,8 @@ Cross-cutting code lives in `src/common/`: `crypto/` (JWKS, JWT, keygen),
 | Component | Responsibility |
 | --- | --- |
 | `JwksService` | Generates an RS256 key pair on startup (in memory), exposes the JWKS, the active signing key, and key lookup by `kid`. Supports rotation. |
-| `JwtService` | Signs ID tokens (`typ: JWT`, 5 min), access tokens (`typ: at+jwt`, RFC 9068, default 1 h), and refresh tokens (`typ: rt+jwt`, default 30 d); verifies any token by resolving `kid`. |
+| `JwtService` | Signs ID tokens (`typ: JWT`, 5 min), access tokens (`typ: at+jwt`, RFC 9068, default 1 h), and refresh tokens (`typ: rt+jwt`, default 30 d); verifies any token by resolving `kid`; computes `at_hash`/`c_hash` token hashes (`tokenHash`). |
+| `ClientSecretCipher` | Seals/recovers client secrets with AES-256-GCM (HKDF-derived key); `@Global`, shared by the store layer (seal/verify) and the client authenticator (recover for HMAC). |
 | `KeygenService` | Key-generation helper utilities. |
 
 ### Identity & access (`src/modules/`)
@@ -111,7 +114,7 @@ Cross-cutting code lives in `src/common/`: `crypto/` (JWKS, JWT, keygen),
 | Component | Responsibility |
 | --- | --- |
 | `UserService` / `UserStore` | Find users by id/email; verify bcrypt passwords. |
-| `ClientService` / `ClientStore` | Register clients (opaque id + secret, per-type secure defaults, redirect-URI validation), list/get, rotate secrets. Secrets are bcrypt-hashed; plaintext is returned **once**. |
+| `ClientService` / `ClientStore` | Register clients (opaque id + secret, per-type secure defaults, redirect-URI validation, optional per-client `jwks`/`jwksUri` for `private_key_jwt`), list/get, rotate secrets. Secrets are sealed with AES-256-GCM via `ClientSecretCipher`; plaintext is returned **once**. |
 | `GrantStore` | Persists user→client consent grants (scopes), find-or-create with scope union, revoke. |
 | `SessionService` | Creates/validates Redis-backed sessions; HMAC-signs/unsigns the session cookie (`COOKIE_SECRET`) using a timing-safe comparison. |
 | `AdminGuard` | Validates the signed session cookie and checks the user email against `ADMIN_EMAILS`. |
@@ -138,6 +141,7 @@ graph TB
     Codes["authcode:&lt;code&gt; — TTL 10 min, single use"]
     Inter["interaction:&lt;uid&gt; — TTL 30 min"]
     Deny["revoked:&lt;jti&gt; — TTL until token exp"]
+    Assert["assertion_jti:&lt;client&gt;:&lt;jti&gt; — TTL until assertion exp"]
   end
 ```
 
@@ -148,6 +152,7 @@ graph TB
 | Authorization codes | Redis | 10 min, consumed on use | `AuthorizationCodeStore` |
 | Interactions (pending authorize) | Redis | 30 min | `InteractionStore` |
 | Revoked access-token `jti`s | Redis | Until token `exp` | `TokenDenylistService` |
+| Used client-assertion `jti`s | Redis | Until assertion `exp` | `ClientAssertionReplayService` |
 | Signing keys (JWKS) | **In-memory** | Process lifetime | `JwksService` |
 
 > **Operational note:** signing keys are generated in memory at boot and are
@@ -201,12 +206,23 @@ See [Authentication Flows](./authentication-flows.md) for refresh and revoke dia
 ## Security model
 
 - **Transport:** HTTPS only (self-signed cert locally; replace in production).
-- **PKCE:** Required per-client (`requirePkce`). Public clients (`spa`/`native`,
-  auth method `none`) always require it. When required, `plain` is rejected at
-  `/authorize` and only `S256` is accepted.
-- **Client authentication:** `client_secret_basic` or `client_secret_post`;
-  secrets are bcrypt-hashed at rest and compared with bcrypt. Public clients
-  authenticate with `client_id` only.
+- **PKCE:** Required per-client (`requirePkce`) on flows that return an
+  authorization code (code/hybrid). Public clients (`spa`/`native`, auth method
+  `none`) always require it. When required, `plain` is rejected at `/authorize`
+  and only `S256` is accepted. Implicit flows (no code) carry no PKCE.
+- **Client authentication:** `client_secret_basic`/`client_secret_post` (secrets
+  sealed with AES-256-GCM at rest, recovered and compared in constant time),
+  `client_secret_jwt`/`private_key_jwt` (RFC 7523 signed assertion: signature,
+  `iss=sub=client_id`, `aud` = issuer/token/revoke endpoint, `exp`, and a
+  single-use `jti`), or public `none` (`client_id` only). The presented method
+  must match the registered one — a confidential client cannot be admitted on
+  `client_id` alone.
+- **Response types & modes:** `code` (Authorization Code), `id_token` /
+  `id_token token` (Implicit), `code id_token` / `code token` /
+  `code id_token token` (Hybrid), and `none`. Token-bearing responses default to
+  the `fragment` response mode and may not use `query`; ID tokens carry
+  `at_hash`/`c_hash` binding them to the access token/code in the same response.
+  Implicit/hybrid require `nonce` and the `openid` scope.
 - **Sessions:** Random UUID stored in Redis; the cookie carries
   `sessionId.HMAC-SHA256(sessionId, COOKIE_SECRET)` and is verified with a
   timing-safe comparison. Cookie flags: `httpOnly`, `sameSite=lax`, `path=/`.
@@ -231,7 +247,7 @@ These are accurate descriptions of current behavior, to prevent surprises:
 | Area | Current behavior | Expectation / roadmap |
 | --- | --- | --- |
 | Refresh tokens | `refreshTokens()` issues a **new** refresh token but does **not** invalidate the old one. Previously issued refresh tokens remain valid until they expire. | Rotation **with** family-based replay detection is roadmap M4. Do not rely on one-time-use refresh tokens today. |
-| `registration_endpoint` | Discovery advertises `/connect/register`, but **no such endpoint is implemented**. Client registration is the admin API at `/api/v1/clients`. | Dynamic client registration is not yet built. |
+| `registration_endpoint` | RFC 7591 dynamic registration is implemented at `/oidc/register`, gated by an initial access token (`OIDC_REGISTRATION_ACCESS_TOKEN`); discovery advertises it only when that token is configured. The admin API at `/api/v1/clients` remains available. | — |
 | `code_challenge_methods_supported` | Discovery advertises `['S256']`, but `/authorize` also accepts `plain` and **defaults to `plain`** when the method is omitted (unless the client requires PKCE). | Treat `S256` as the supported method; always send it explicitly. |
 | Login field | The login form and `LoginDto` use **`email`** (validated as an email), not `username`. Combined with `forbidNonWhitelisted`, posting `username` is rejected. | Sign in with the user's email (e.g. `test@example.com`). |
 | Signing keys | Generated in memory at boot; not persisted; rotate on restart. | Persistent/rotatable key store needed for production. |

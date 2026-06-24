@@ -35,22 +35,37 @@ from `OIDC_ISSUER`.
   "token_endpoint": "https://localhost:3000/oidc/token",
   "userinfo_endpoint": "https://localhost:3000/oidc/userinfo",
   "revocation_endpoint": "https://localhost:3000/oidc/revoke",
+  "end_session_endpoint": "https://localhost:3000/oidc/sessions/logout",
   "jwks_uri": "https://localhost:3000/oidc/jwks.json",
-  "registration_endpoint": "https://localhost:3000/connect/register", // ⚠ advertised, not implemented
-  "response_types_supported": ["code"],
-  "grant_types_supported": ["authorization_code", "refresh_token"],
+  // Present only when OIDC_REGISTRATION_ACCESS_TOKEN is configured (RFC 7591):
+  "registration_endpoint": "https://localhost:3000/oidc/register",
+  "response_types_supported": [
+    "code", "id_token", "id_token token",
+    "code id_token", "code token", "code id_token token", "none"
+  ],
+  "response_modes_supported": ["query", "fragment"],
+  "grant_types_supported": ["authorization_code", "refresh_token", "implicit"],
   "subject_types_supported": ["public"],
   "id_token_signing_alg_values_supported": ["RS256"],
-  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
-  "revocation_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic", "client_secret_post",
+    "client_secret_jwt", "private_key_jwt", "none"
+  ],
+  "token_endpoint_auth_signing_alg_values_supported": ["RS256", "ES256", "HS256"],
+  "revocation_endpoint_auth_methods_supported": [
+    "client_secret_basic", "client_secret_post",
+    "client_secret_jwt", "private_key_jwt", "none"
+  ],
   "scopes_supported": ["openid", "profile", "email"],
-  "claims_supported": ["sub", "name", "email"],
+  "claims_supported": ["sub", "auth_time", "preferred_username", "email", "email_verified"],
   "code_challenge_methods_supported": ["S256"]
 }
 ```
 
-> `registration_endpoint` is present in the document but there is no handler for
-> `/connect/register`. Use the [admin client API](#admin-client-management) instead.
+> `registration_endpoint` appears only when `OIDC_REGISTRATION_ACCESS_TOKEN` is
+> set (the endpoint is closed-by-default). It maps to RFC 7591 dynamic
+> registration at `/oidc/register`; the [admin client API](#admin-client-management)
+> is the alternative for first-party clients.
 
 ### `GET /oidc/jwks.json`
 
@@ -78,14 +93,15 @@ Authorization endpoint (browser-facing). Source: `AuthorizeController`.
 
 | Param | Required | Notes |
 | --- | --- | --- |
-| `response_type` | ✅ | Must be `code`; anything else → `unsupported_response_type`. |
+| `response_type` | ✅ | One of `code`, `id_token`, `id_token token`, `code id_token`, `code token`, `code id_token token`, `none` (token order-insensitive); anything else → `unsupported_response_type`. |
 | `client_id` | ✅ | Must resolve to an `active` client. |
 | `redirect_uri` | ✅ | Must exactly match a registered redirect URI. |
-| `scope` | ✅ | Space-separated; e.g. `openid profile email`. |
-| `code_challenge` | ✅ | PKCE challenge (always required by this server). |
+| `scope` | ✅ | Space-separated; e.g. `openid profile email`. Must include `openid` when an ID token is returned. |
+| `code_challenge` | code-bearing flows | PKCE challenge. Required for `code` and hybrid (`code …`) flows; not used by implicit/`none`. |
 | `code_challenge_method` | optional | `S256` or `plain`. Defaults to `plain` if omitted. Forced to reject `plain` when the client has `requirePkce=true`. **Always send `S256`.** |
+| `nonce` | ID-token flows | Required for any response type that returns an `id_token` (implicit/hybrid); carried into the ID token. Optional for the code flow. |
+| `response_mode` | optional | `query` or `fragment`. Defaults to `fragment` for token-bearing responses, `query` otherwise. `query` is rejected for token-bearing responses. |
 | `state` | recommended | Echoed back on redirect; CSRF protection. |
-| `nonce` | optional | Carried into the ID token. |
 | `display`, `prompt`, `max_age`, `id_token_hint`, `login_hint`, `acr_values`, `ui_locales` | optional | Accepted (so compliant clients aren't rejected by the strict validation pipe) but **not currently acted upon**. |
 
 **Behavior & responses**
@@ -94,15 +110,21 @@ Authorization endpoint (browser-facing). Source: `AuthorizeController`.
 - Unknown/inactive client → `400` `{ "error": "invalid_client", … }`.
 - Unregistered `redirect_uri` → `400` `{ "error": "invalid_request", … }`
   (returned as JSON, **not** redirected, to avoid open-redirect).
-- Invalid `code_challenge_method`, or `plain` when the client requires PKCE →
-  `303` redirect to `redirect_uri` with `error=invalid_request` (and `state`).
+- After the client/redirect URI are validated, remaining errors (unsupported
+  `response_type`/`response_mode`, missing `code_challenge`/`nonce`, missing
+  `openid`, `plain` when PKCE is required) are returned by `303` redirect to
+  `redirect_uri` with `error`/`error_description` (and `state`), placed in the
+  query string or fragment per the response mode.
 - **No valid session** → `303` to `/interaction/:uid` (login).
-- **Valid session, scopes already granted** → consent is skipped; `303`
-  straight to `redirect_uri?code=…&state=…`.
+- **Valid session, scopes already granted** → consent is skipped; the response
+  artifacts are issued immediately.
 - **Valid session, new scopes** → `303` to `/interaction/:uid` (consent).
 
-On success the browser ultimately lands on
-`redirect_uri?code=<authorization_code>&state=<state>`.
+On success the browser lands on the `redirect_uri` carrying the artifacts the
+`response_type` calls for — `code` and/or `access_token`+`id_token` (plus
+`token_type`, `expires_in`, `scope`) and `state` — in the query string (code/
+`none`) or fragment (implicit/hybrid). Implicit/hybrid ID tokens include
+`at_hash`/`c_hash` binding them to the access token/code in the same response.
 
 ---
 
@@ -295,10 +317,15 @@ Register a new client. Returns the full metadata plus a one-time `clientSecret`
 | `type` | ✅ | One of `web`, `native`, `spa`, `service`. Drives secure defaults. |
 | `redirectUris` | ✅ | Non-empty array of unique, absolute URIs (no fragment). HTTPS required except loopback; native clients may use custom schemes/loopback. |
 | `description` | optional | ≤ 1024 chars. |
-| `grantTypes` | optional | Subset of `authorization_code`, `refresh_token`, `client_credentials`. Default: `['authorization_code','refresh_token']` (or `['client_credentials']` for `service`). |
-| `responseTypes` | optional | Subset of `code`, `id_token`, `token`. Default `['code']`. |
-| `tokenEndpointAuthMethod` | optional | `client_secret_basic`, `client_secret_post`, or `none`. Default: `none` for `spa`/`native`, else `client_secret_basic`. |
+| `grantTypes` | optional | Subset of `authorization_code`, `refresh_token`, `implicit`, `client_credentials`. Default: `['authorization_code','refresh_token']` (or `['client_credentials']` for `service`). |
+| `responseTypes` | optional | Subset of `code`, `id_token`, `id_token token`, `code id_token`, `code token`, `code id_token token`, `none`. Default `['code']`. |
+| `tokenEndpointAuthMethod` | optional | `client_secret_basic`, `client_secret_post`, `client_secret_jwt`, `private_key_jwt`, or `none`. Default: `none` for `spa`/`native`, else `client_secret_basic`. |
+| `jwksUri` / `jwks` | `private_key_jwt` only | The client's JWK Set, by URL or inline, used to verify its assertions. Exactly one is required for `private_key_jwt`; supplying both → `400` `invalid_client_metadata`. |
 | `requirePkce` | optional | Forced to `true` for public (`none`) clients. |
+
+> A `client_secret` is minted only for the secret-bearing methods
+> (`client_secret_basic`/`post`/`jwt`); `private_key_jwt` and `none` clients get
+> none. Secrets are sealed with AES-256-GCM at rest, never re-displayed.
 
 **Defaults by type**
 
@@ -317,7 +344,7 @@ Register a new client. Returns the full metadata plus a one-time `clientSecret`
 ```json
 {
   "id": "<uuid>",
-  "clientId": "<32 hex chars>",
+  "clientId": "<uuid>",
   "clientSecret": "<base64url, shown once>",
   "name": "Acme Dashboard",
   "description": null,
@@ -361,7 +388,7 @@ clients (no secret), `404` if the client doesn't exist. Returns
 
 | Context | Mechanism | Detail |
 | --- | --- | --- |
-| `/oidc/token`, `/oidc/revoke` | **Client auth** | `client_secret_basic` (HTTP Basic: `base64(client_id:client_secret)`) **or** `client_secret_post` (`client_id`/`client_secret` in the body). Public clients send `client_id` only. Source: `ClientAuthenticatorService`. |
+| `/oidc/token`, `/oidc/revoke` | **Client auth** | `client_secret_basic` (HTTP Basic `base64(client_id:client_secret)`), `client_secret_post` (`client_id`/`client_secret` in body), `client_secret_jwt`/`private_key_jwt` (RFC 7523: send `client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer` and a signed `client_assertion` JWT with `iss=sub=client_id`, `aud`=issuer/token/revoke endpoint, a unique single-use `jti`, and `exp`), or public `none` (`client_id` only). The method used must match the client's registered `token_endpoint_auth_method`. Source: `ClientAuthenticatorService`. |
 | `/oidc/userinfo` | **Bearer access token** | `Authorization: Bearer <at+jwt>`; verified and denylist-checked by `BearerTokenGuard`. |
 | `/api/v1/clients/*` | **Admin session cookie** | Signed `idp_session` cookie from the interaction login; user email must be in `ADMIN_EMAILS`. Source: `AdminGuard`. |
 | `/oidc/authorize`, `/interaction/*` | **Browser session** | Signed `idp_session` cookie (created on login). |

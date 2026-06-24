@@ -52,6 +52,8 @@ Copy `.env.example` to `.env` and adjust. Defaults are development-friendly and
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OIDC_ISSUER` | `https://idp.example.com` *(code default in `JwksService`)* / `http://localhost:3000` *(in `.env.example`)* | The `iss` claim and the base for all discovery URLs. **Set this** to your externally reachable HTTPS origin. |
+| `OIDC_REGISTRATION_ACCESS_TOKEN` | _(unset)_ | Initial access token (RFC 7591) for `POST /oidc/register`. **Closed by default** — when unset the dynamic-registration endpoint is disabled and omitted from discovery. |
+| `CLIENT_SECRET_ENC_KEY` | falls back to `TENANT_ENCRYPTION_KEY`, then `dev-key-change-in-production` | Master secret from which `ClientSecretCipher` derives the AES-256-GCM key that seals client secrets at rest (so `client_secret_jwt` HMAC verification can recover them). **MUST override in production**; the service logs an error if left at the dev default. |
 
 ### HTTP / CORS
 
@@ -186,7 +188,7 @@ native client uses `com.example.app://callback`.
 This project is **work in progress**; the items below are the minimum from the
 [roadmap](../__planning/production_roadmap.md) before exposing it publicly:
 
-- [ ] Override `COOKIE_SECRET`, `TENANT_ENCRYPTION_KEY`, DB and Redis credentials with real secrets (ideally from a secret manager).
+- [ ] Override `COOKIE_SECRET`, `TENANT_ENCRYPTION_KEY`, `CLIENT_SECRET_ENC_KEY`, DB and Redis credentials with real secrets (ideally from a secret manager). Rotating `CLIENT_SECRET_ENC_KEY` invalidates existing sealed client secrets — rotate client secrets afterward.
 - [ ] Set `NODE_ENV=production` (disables seeding and DB `synchronize`).
 - [ ] Replace `synchronize` with real migrations (M1).
 - [ ] Persist and rotate JWT signing keys (don't regenerate in memory per instance).

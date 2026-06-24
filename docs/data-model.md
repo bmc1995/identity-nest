@@ -45,7 +45,9 @@ erDiagram
     uuid id PK
     uuid tenant_id FK
     varchar clientId "unique per tenant"
-    varchar clientSecretHash "bcrypt, null=public"
+    varchar clientSecretEnc "AES-256-GCM sealed, null=public/private_key_jwt"
+    text jwksUri "private_key_jwt, null otherwise"
+    jsonb jwks "inline JWK Set, null otherwise"
     varchar type "web|native|spa|service"
     text_array redirectUris
     text_array grantTypes
@@ -114,14 +116,16 @@ non-production, **every** listed entity's table is created — but only the
 All keys are additionally prefixed by `REDIS_KEY_PREFIX` (default `idp:`), so the
 effective key for a session is e.g. `idp:session:<uuid>`. Access is via
 `CacheService` (`getJson`, `setJson`, `getJsonAndDelete`, `setJsonKeepTtl`,
-`delete`, `exists`, `ttl`).
+`setJsonIfAbsent` (atomic SET NX), `delete`, `exists`, `ttl`,
+`incrementInWindow`).
 
 | Key pattern | Written by | TTL | Value | Semantics |
 | --- | --- | --- | --- | --- |
 | `session:<sessionId>` | `SessionService` | `SESSION_TTL_MS` (default 1 h) | `{ sessionId, userId, authenticatedAt, expiresAt }` | Browser/admin login session. Looked up from the signed `idp_session` cookie. |
 | `authcode:<code>` | `AuthorizationCodeStore` | 10 min | code metadata (client, user, grant, redirect, scope, nonce, PKCE) | OAuth authorization code. **Single-use** — read with `GETDEL`. |
-| `interaction:<uid>` | `InteractionStore` | 30 min | `{ uid, prompt, params, userId, … }` | Pending `/authorize` request awaiting login/consent. |
+| `interaction:<uid>` | `InteractionStore` | 30 min | `{ uid, prompt, params (incl. response_mode), userId, … }` | Pending `/authorize` request awaiting login/consent. |
 | `revoked:<jti>` | `TokenDenylistService` | until token `exp` | `{ revokedAt }` | Denylist for revoked access-token `jti`s; checked by `BearerTokenGuard`. |
+| `assertion_jti:<client>:<jti>` | `ClientAssertionReplayService` | until assertion `exp` | `{ usedAt }` | Single-use guard for `client_secret_jwt`/`private_key_jwt` assertion `jti`s (written atomically with SET NX). |
 
 **Cookie ↔ session linkage:** the `idp_session` cookie value is
 `sessionId.HMAC_SHA256(sessionId, COOKIE_SECRET)`. `SessionService.unsign`
@@ -143,10 +147,11 @@ All tokens are RS256 JWTs signed by `JwtService` using the active JWKS key. The
 | `aud` | `client_id` |
 | `iss` | `OIDC_ISSUER` |
 | `iat`, `exp` | Issued-at / +300 s |
-| `nonce` | From `/authorize` (if provided) |
-| `auth_time` | Time of code exchange |
+| `nonce` | From `/authorize` (if provided; required for implicit/hybrid) |
+| `auth_time` | Time of code exchange (or authorize-time issuance for implicit/hybrid) |
 | `email`, `email_verified` | User record |
 | `preferred_username` | User `nickname` (falls back to `email`) |
+| `at_hash`, `c_hash` | Implicit/hybrid only — hash of the access token / code returned alongside (OIDC Core §3.3.2.11) |
 
 ### Access token — `typ: at+jwt` (RFC 9068), TTL `accessTokenLifetime` (default 3600 s)
 

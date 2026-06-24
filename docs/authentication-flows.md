@@ -4,13 +4,17 @@ Sequence diagrams for the flows Identity Nest implements today, traced directly 
 
 - [Authorization Code + PKCE (full sign-in)](#authorization-code--pkce-full-sign-in)
 - [Consent-skip fast path](#consent-skip-fast-path)
+- [Implicit & hybrid flows](#implicit--hybrid-flows)
 - [Refresh token grant](#refresh-token-grant)
 - [Token revocation](#token-revocation)
 - [Error & denial redirects](#error--denial-redirects)
 - [Generating PKCE values](#generating-pkce-values)
 
-All flows are **Authorization Code with PKCE** — this server always requires a
-`code_challenge` on `/authorize`.
+The **Authorization Code + PKCE** flow below is the primary, recommended path —
+a `code_challenge` is required on `/authorize` for any response type that
+returns a code. The server also implements the implicit, hybrid, and `none`
+response types (see [Implicit & hybrid flows](#implicit--hybrid-flows)); those
+return tokens directly from `/authorize` and carry no PKCE.
 
 ---
 
@@ -104,6 +108,38 @@ If the session cookie is missing or invalid, the flow falls back to the full
 
 ---
 
+## Implicit & hybrid flows
+
+For non-code response types, `OidcService.completeConsent` mints the requested
+artifacts at the authorize/consent step instead of deferring to `/oidc/token`,
+and returns them in the redirect **fragment** (the default `response_mode` for
+token-bearing responses; `query` is refused).
+
+| `response_type` | Flow | Returned to `redirect_uri` (fragment) |
+| --- | --- | --- |
+| `id_token` | Implicit | `id_token`, `state` |
+| `id_token token` | Implicit | `id_token`, `access_token`, `token_type`, `expires_in`, `scope`, `state` |
+| `code id_token` | Hybrid | `code`, `id_token`, `state` |
+| `code token` | Hybrid | `code`, `access_token`, `token_type`, `expires_in`, `scope`, `state` |
+| `code id_token token` | Hybrid | `code`, `id_token`, `access_token`, `token_type`, `expires_in`, `scope`, `state` |
+| `none` | — | `state` only (no code/tokens; grant still recorded) |
+
+Rules enforced at `/authorize` for these flows:
+
+- **`nonce` is required** whenever an `id_token` is returned, and **`scope` must
+  include `openid`**.
+- **No PKCE** for implicit (no code); hybrid still requires `code_challenge`
+  because it returns a code.
+- ID tokens issued here include **`at_hash`** (when an access token is in the
+  same response) and **`c_hash`** (when a code is), binding them together
+  (OIDC Core §3.3.2.11).
+
+Hybrid `code` values are still exchanged at `/oidc/token` exactly as in the code
+flow. Implicit is retained for OIDC certification coverage; new integrations
+should prefer Authorization Code + PKCE.
+
+---
+
 ## Refresh token grant
 
 ```mermaid
@@ -172,13 +208,18 @@ the denylist; and because the grant is revoked, subsequent refreshes fail.
 Where the OAuth spec calls for it, `/authorize` and the consent step communicate
 failures by **redirecting back to the client** with `error` parameters:
 
+Redirected errors land in the query string or fragment to match the request's
+response mode.
+
 | Situation | Result |
 | --- | --- |
+| Unsupported `response_type` / `response_mode` | `303 → redirect_uri` with `error=unsupported_response_type` / `invalid_request` (`&state`) |
+| Missing `code_challenge` (code/hybrid), missing `nonce` or `openid` (id_token flows) | `303 → redirect_uri?error=invalid_request` (or `invalid_scope`) `&…&state=…` |
 | Unsupported `code_challenge_method`, or `plain` when PKCE is required | `303 → redirect_uri?error=invalid_request&error_description=…&state=…` |
 | User denies consent | `303 → redirect_uri?error=access_denied&…&state=…` |
 | Interaction aborted (`GET /interaction/:uid/abort`) | `303 → redirect_uri?error=access_denied&…&state=…` |
 | Unknown/inactive client, or unregistered `redirect_uri` | `400` JSON (no redirect — avoids open-redirect to an untrusted URI) |
-| Missing required params, bad `response_type` | `400` JSON `{ "error": "invalid_request" \| "unsupported_response_type" }` |
+| Missing core params (`response_type`/`client_id`/`redirect_uri`/`scope`) | `400` JSON `{ "error": "invalid_request" }` |
 
 ---
 

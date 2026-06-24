@@ -11,10 +11,13 @@
 ## Where We Are Today
 
 **Implemented (no rework needed):**
-- OIDC core: `/oidc/authorize`, `/oidc/token`, `/oidc/userinfo`, `/.well-known/openid-configuration`, `/.well-known/jwks.json`
+- OIDC core: `/oidc/authorize`, `/oidc/token`, `/oidc/userinfo`, `/oidc/revoke`, `/.well-known/openid-configuration`, `/.well-known/jwks.json`
+- Response types: code, implicit (`id_token`, `id_token token`), hybrid (`code id_token`, `code token`, `code id_token token`), and `none` — with `query`/`fragment` response modes and `at_hash`/`c_hash` binding
 - Auth code + PKCE flow, JWT (RS256) issuance, JWKS rotation
-- Postgres (TypeORM) + Redis cache (sessions, auth codes, interactions)
-- Client registration + admin-guarded `/clients` API
+- Client authentication: `client_secret_basic`/`post`, `client_secret_jwt`/`private_key_jwt` (RFC 7523 assertions with single-use `jti` replay guard), and public `none`
+- Client secrets sealed at rest with AES-256-GCM (`ClientSecretCipher`) — an early slice of the M2 encryption-at-rest work
+- RFC 7591 dynamic client registration at `/oidc/register` (initial-access-token gated) + admin-guarded `/clients` API
+- Postgres (TypeORM) + Redis cache (sessions, auth codes, interactions, denylist, assertion-replay)
 - Internal apps dashboard (`/apps`) + login/logout
 - ConfigModule with typed config
 
