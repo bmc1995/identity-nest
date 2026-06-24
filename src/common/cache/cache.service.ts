@@ -21,6 +21,26 @@ export class CacheService {
     await this.redis.set(key, JSON.stringify(value), 'KEEPTTL');
   }
 
+  /**
+   * Atomically set `key` only if it does not already exist (SET NX), with an
+   * expiry. Returns true when the key was created, false when it already
+   * existed — useful for single-use / replay guards.
+   */
+  async setJsonIfAbsent<T>(
+    key: string,
+    value: T,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const res = await this.redis.set(
+      key,
+      JSON.stringify(value),
+      'EX',
+      ttlSeconds,
+      'NX',
+    );
+    return res === 'OK';
+  }
+
   async getJsonAndDelete<T>(key: string): Promise<T | null> {
     const raw = await this.redis.getdel(key);
     return raw ? (JSON.parse(raw) as T) : null;

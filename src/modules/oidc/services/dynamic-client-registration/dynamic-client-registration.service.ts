@@ -10,14 +10,31 @@ import { ClientRegistrationDto } from '../../dto/client-registration.dto';
 const SUPPORTED_AUTH_METHODS = [
   'client_secret_basic',
   'client_secret_post',
+  'client_secret_jwt',
+  'private_key_jwt',
   'none',
 ] as const;
 
-/** Grant types the token endpoint actually implements. */
-const SUPPORTED_GRANT_TYPES = ['authorization_code', 'refresh_token'] as const;
+/** Grant types the server implements (token-endpoint grants + implicit). */
+const SUPPORTED_GRANT_TYPES = [
+  'authorization_code',
+  'refresh_token',
+  'implicit',
+] as const;
 
-/** Response types the authorize endpoint actually implements. */
-const SUPPORTED_RESPONSE_TYPES = ['code'] as const;
+/**
+ * Response types the authorize endpoint implements: code, implicit, hybrid,
+ * and none.
+ */
+const SUPPORTED_RESPONSE_TYPES = [
+  'code',
+  'id_token',
+  'id_token token',
+  'code id_token',
+  'code token',
+  'code id_token token',
+  'none',
+] as const;
 
 /**
  * Successful RFC 7591 registration response. `client_secret` and
@@ -34,6 +51,7 @@ export interface ClientRegistrationResponse {
   response_types: string[];
   client_name: string;
   scope?: string;
+  jwks_uri?: string;
 }
 
 /**
@@ -61,7 +79,7 @@ export class DynamicClientRegistrationService {
     const grantTypes = dto.grant_types?.length
       ? dto.grant_types
       : ['authorization_code'];
-    const responseTypes = dto.response_types?.length
+    const rawResponseTypes = dto.response_types?.length
       ? dto.response_types
       : ['code'];
 
@@ -73,6 +91,11 @@ export class DynamicClientRegistrationService {
     for (const grant of grantTypes) {
       this.assertSupported(grant, SUPPORTED_GRANT_TYPES, 'grant_types');
     }
+    // Normalize each response_type to a canonical token order before checking
+    // support — RFC 6749 treats the space-delimited set as order-insensitive.
+    const responseTypes = rawResponseTypes.map((rt) =>
+      this.normalizeResponseType(rt),
+    );
     for (const responseType of responseTypes) {
       this.assertSupported(
         responseType,
@@ -81,9 +104,10 @@ export class DynamicClientRegistrationService {
       );
     }
 
-    // The only interactive grant we support is authorization_code, which needs
-    // response_type "code" and at least one redirect URI.
-    if (grantTypes.includes('authorization_code') && !responseTypes.includes('code')) {
+    // Flows that return a code (authorization_code / hybrid) need response_type
+    // to include "code"; conversely "code" requires the authorization_code grant.
+    const wantsCode = responseTypes.some((rt) => rt.split(' ').includes('code'));
+    if (grantTypes.includes('authorization_code') && !wantsCode) {
       throw this.invalidMetadata(
         'response_types must include "code" for the authorization_code grant',
       );
@@ -93,6 +117,11 @@ export class DynamicClientRegistrationService {
         error: 'invalid_redirect_uri',
         error_description: 'At least one redirect_uri is required',
       });
+    }
+    // jwks and jwks_uri are mutually exclusive (RFC 7591 §2); private_key_jwt
+    // presence/consistency is enforced downstream by ClientService.
+    if (dto.jwks && dto.jwks_uri) {
+      throw this.invalidMetadata('Provide only one of jwks or jwks_uri');
     }
 
     const isPublic = authMethod === 'none';
@@ -110,6 +139,8 @@ export class DynamicClientRegistrationService {
       responseTypes,
       tokenEndpointAuthMethod:
         authMethod as RegisterClientDto['tokenEndpointAuthMethod'],
+      ...(dto.jwks_uri ? { jwksUri: dto.jwks_uri } : {}),
+      ...(dto.jwks ? { jwks: dto.jwks } : {}),
       // requirePkce is left to ClientService, which forces it on for public clients.
     };
 
@@ -127,6 +158,7 @@ export class DynamicClientRegistrationService {
       response_types: created.responseTypes,
       client_name: created.name,
       ...(dto.scope ? { scope: dto.scope } : {}),
+      ...(dto.jwks_uri ? { jwks_uri: dto.jwks_uri } : {}),
     };
 
     if (created.clientSecret) {
@@ -135,6 +167,15 @@ export class DynamicClientRegistrationService {
     }
 
     return response;
+  }
+
+  /**
+   * Canonicalize a space-delimited response_type by sorting its tokens, so
+   * "token id_token" and "id_token token" compare equal against the supported
+   * set (RFC 6749 §3.1.1 — the set is order-insensitive).
+   */
+  private normalizeResponseType(responseType: string): string {
+    return responseType.trim().split(/\s+/).sort().join(' ');
   }
 
   /** Fall back to the redirect URI's host when no client_name is supplied. */

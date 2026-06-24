@@ -16,6 +16,12 @@ import { SessionService } from '../../auth/session.service';
 import { OidcService } from '../oidc.service';
 import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
 import { PkceMethod } from '../../../common/enums/pkce-method';
+import {
+  defaultResponseMode,
+  isResponseModeAllowed,
+  parseResponseType,
+  ResponseMode,
+} from '../utils/response-type';
 
 @Controller('oidc')
 export class AuthorizeController {
@@ -47,35 +53,20 @@ export class AuthorizeController {
     let codeChallengeMethod = query.code_challenge_method;
     this.logger.log(`Authorize request for client_id=${clientId}`);
 
-    // Validate required parameters
-    if (
-      !responseType ||
-      !clientId ||
-      !redirectUri ||
-      !scope ||
-      !codeChallenge
-    ) {
+    // Required parameters common to every response_type.
+    if (!responseType || !clientId || !redirectUri || !scope) {
       throw new HttpException(
         {
           error: 'invalid_request',
           error_description:
-            'Missing required parameters: response_type, client_id, redirect_uri, scope, code_challenge',
+            'Missing required parameters: response_type, client_id, redirect_uri, scope',
         },
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    if (responseType !== 'code') {
-      throw new HttpException(
-        {
-          error: 'unsupported_response_type',
-          error_description: 'Only response_type=code is supported',
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // Validate client
+    // Validate the client and redirect_uri before trusting the redirect target.
+    // Errors here cannot be safely redirected, so they surface as 400s.
     const client = await this.clientStore.findByClientId(clientId);
     if (!client || client.status !== 'active') {
       this.logger.warn(`Invalid or inactive client: ${clientId}`);
@@ -87,8 +78,6 @@ export class AuthorizeController {
         HttpStatus.BAD_REQUEST,
       );
     }
-
-    // Validate redirect_uri
     if (!client.redirectUris.includes(redirectUri)) {
       throw new HttpException(
         {
@@ -98,31 +87,129 @@ export class AuthorizeController {
         HttpStatus.BAD_REQUEST,
       );
     }
-    // Validate code_challenge_method
-    if (!codeChallengeMethod) {
-      codeChallengeMethod = PkceMethod.PLAIN;
-    }
-    if (!['S256', 'plain'].includes(codeChallengeMethod)) {
+
+    // redirect_uri is trusted from here on — remaining errors go back to the
+    // client via the redirect, in the response_mode they will receive.
+    const parsed = parseResponseType(responseType);
+    if (!parsed) {
       this.redirectWithError(
         res,
         redirectUri,
-        'invalid_request',
-        'Unsupported code_challenge_method',
+        'unsupported_response_type',
+        `Unsupported response_type: ${responseType}`,
         state,
       );
       return;
     }
-    // PKCE required check
-    if (client.requirePkce && codeChallengeMethod === 'plain') {
-      this.redirectWithError(
-        res,
-        redirectUri,
-        'invalid_request',
-        'S256 code_challenge_method is required',
-        state,
-      );
-      return;
+
+    // Resolve response_mode (explicit override or per-type default).
+    let responseMode: ResponseMode;
+    if (query.response_mode) {
+      if (query.response_mode !== 'query' && query.response_mode !== 'fragment') {
+        this.redirectWithError(
+          res,
+          redirectUri,
+          'invalid_request',
+          'Unsupported response_mode',
+          state,
+        );
+        return;
+      }
+      responseMode = query.response_mode;
+      if (!isResponseModeAllowed(parsed, responseMode)) {
+        this.redirectWithError(
+          res,
+          redirectUri,
+          'invalid_request',
+          'response_mode=query is not allowed for a token-bearing response_type',
+          state,
+          defaultResponseMode(parsed),
+        );
+        return;
+      }
+    } else {
+      responseMode = defaultResponseMode(parsed);
     }
+
+    // PKCE applies only to flows that return an authorization code.
+    if (parsed.hasCode) {
+      if (!codeChallenge) {
+        this.redirectWithError(
+          res,
+          redirectUri,
+          'invalid_request',
+          'code_challenge is required',
+          state,
+          responseMode,
+        );
+        return;
+      }
+      if (!codeChallengeMethod) {
+        codeChallengeMethod = PkceMethod.PLAIN;
+      }
+      if (!['S256', 'plain'].includes(codeChallengeMethod)) {
+        this.redirectWithError(
+          res,
+          redirectUri,
+          'invalid_request',
+          'Unsupported code_challenge_method',
+          state,
+          responseMode,
+        );
+        return;
+      }
+      if (client.requirePkce && codeChallengeMethod === 'plain') {
+        this.redirectWithError(
+          res,
+          redirectUri,
+          'invalid_request',
+          'S256 code_challenge_method is required',
+          state,
+          responseMode,
+        );
+        return;
+      }
+    }
+
+    // When an ID token is returned directly (implicit/hybrid), OIDC requires a
+    // nonce and the openid scope.
+    if (parsed.hasIdToken) {
+      if (!nonce) {
+        this.redirectWithError(
+          res,
+          redirectUri,
+          'invalid_request',
+          'nonce is required for this response_type',
+          state,
+          responseMode,
+        );
+        return;
+      }
+      if (!scope.split(' ').includes('openid')) {
+        this.redirectWithError(
+          res,
+          redirectUri,
+          'invalid_scope',
+          'openid scope is required for this response_type',
+          state,
+          responseMode,
+        );
+        return;
+      }
+    }
+
+    // Snapshot of the request to resume after any login/consent prompt.
+    const interactionParams = {
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: responseType,
+      response_mode: responseMode,
+      scope,
+      state,
+      nonce,
+      code_challenge: codeChallenge,
+      code_challenge_method: codeChallengeMethod,
+    };
 
     // Check for existing session
     const cookieName = this.sessions.getCookieName();
@@ -149,19 +236,10 @@ export class AuthorizeController {
               this.logger.log(
                 `Existing grant covers requested scopes for user=${session.userId}, skipping consent`,
               );
-              // Skip consent — issue code immediately
+              // Skip consent — issue the response artifacts immediately
               const interaction = await this.interactionStore.create(
                 'consent',
-                {
-                  client_id: clientId,
-                  redirect_uri: redirectUri,
-                  response_type: responseType,
-                  scope,
-                  state,
-                  nonce,
-                  code_challenge: codeChallenge,
-                  code_challenge_method: codeChallengeMethod,
-                },
+                interactionParams,
               );
               const currInteraction = await this.interactionStore.update(
                 interaction.uid,
@@ -180,16 +258,10 @@ export class AuthorizeController {
           this.logger.log(
             `Session valid for user=${session.userId}, requesting consent for new scopes`,
           );
-          const interaction = await this.interactionStore.create('consent', {
-            client_id: clientId,
-            redirect_uri: redirectUri,
-            response_type: responseType,
-            scope,
-            state,
-            nonce,
-            code_challenge: codeChallenge,
-            code_challenge_method: codeChallengeMethod,
-          });
+          const interaction = await this.interactionStore.create(
+            'consent',
+            interactionParams,
+          );
           await this.interactionStore.update(interaction.uid, {
             userId: session.userId,
           });
@@ -200,16 +272,10 @@ export class AuthorizeController {
 
     // No valid session — create login interaction
     this.logger.log(`No valid session, redirecting to login`);
-    const interaction = await this.interactionStore.create('login', {
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: responseType,
-      scope,
-      state,
-      nonce,
-      code_challenge: codeChallenge,
-      code_challenge_method: codeChallengeMethod,
-    });
+    const interaction = await this.interactionStore.create(
+      'login',
+      interactionParams,
+    );
 
     return res.redirect(303, `/interaction/${interaction.uid}`);
   }
@@ -240,11 +306,18 @@ export class AuthorizeController {
     error: string,
     description: string,
     state?: string,
+    mode: ResponseMode = 'query',
   ) {
     const url = new URL(redirectUri);
-    url.searchParams.set('error', error);
-    url.searchParams.set('error_description', description);
-    if (state) url.searchParams.set('state', state);
+    const params = new URLSearchParams();
+    params.set('error', error);
+    params.set('error_description', description);
+    if (state) params.set('state', state);
+    if (mode === 'fragment') {
+      url.hash = params.toString();
+    } else {
+      for (const [key, value] of params) url.searchParams.set(key, value);
+    }
     res.redirect(303, url.toString());
   }
 }

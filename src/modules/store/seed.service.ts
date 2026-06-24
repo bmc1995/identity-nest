@@ -6,6 +6,7 @@ import { User } from '../../common/entities/user.entity';
 import { ClientApplication } from '../../common/entities/clientApplication.entity';
 import { Grant } from '../../common/entities/grant.entity';
 import { Tenant } from '../../common/entities/tenant.entity';
+import { ClientSecretCipher } from '../../common/crypto/secret-cipher/client-secret-cipher.service';
 
 @Injectable()
 export class SeedService implements OnModuleInit {
@@ -20,6 +21,7 @@ export class SeedService implements OnModuleInit {
     private readonly grantRepo: Repository<Grant>,
     @InjectRepository(Tenant)
     private readonly tenantRepo: Repository<Tenant>,
+    private readonly secretCipher: ClientSecretCipher,
   ) {}
 
   async onModuleInit() {
@@ -148,13 +150,13 @@ export class SeedService implements OnModuleInit {
     for (const seed of seeds) {
       let client = await this.clientRepo.findOneBy({ clientId: seed.clientId });
       if (!client) {
-        const clientSecretHash = seed.clientSecret
-          ? await bcrypt.hash(seed.clientSecret, 12)
+        const clientSecretEnc = seed.clientSecret
+          ? this.secretCipher.encrypt(seed.clientSecret)
           : null;
         client = await this.clientRepo.save(
           this.clientRepo.create({
             clientId: seed.clientId,
-            clientSecretHash,
+            clientSecretEnc,
             name: seed.name,
             type: seed.type,
             redirectUris: seed.redirectUris,

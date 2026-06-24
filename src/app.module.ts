@@ -15,6 +15,7 @@ import { StoreModule } from './modules/store/store.module';
 import { KeygenService } from './common/crypto/keygen/keygen.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from './common/cache/redis.module';
+import { SecretCipherModule } from './common/crypto/secret-cipher/secret-cipher.module';
 import configuration, { DatabaseConfig } from './common/config/configuration';
 
 @Module({
@@ -38,6 +39,7 @@ import configuration, { DatabaseConfig } from './common/config/configuration';
       },
     }),
     RedisModule,
+    SecretCipherModule,
     OidcModule,
     AuthModule,
     AdminModule,

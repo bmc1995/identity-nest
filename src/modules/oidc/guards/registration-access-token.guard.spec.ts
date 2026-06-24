@@ -3,7 +3,15 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { RegistrationAccessTokenGuard } from './registration-access-token.guard';
+
+// The guard resolves the typed `registration` config at construction but falls
+// back to OIDC_REGISTRATION_ACCESS_TOKEN at call time; these tests drive
+// behavior through that env var, so the typed value is stubbed empty.
+const stubConfig = {
+  getOrThrow: () => ({ initialAccessToken: undefined }),
+} as unknown as ConfigService;
 
 const ctx = (authorization?: string): ExecutionContext =>
   ({
@@ -17,7 +25,7 @@ describe('RegistrationAccessTokenGuard', () => {
   const original = process.env.OIDC_REGISTRATION_ACCESS_TOKEN;
 
   beforeEach(() => {
-    guard = new RegistrationAccessTokenGuard();
+    guard = new RegistrationAccessTokenGuard(stubConfig);
   });
 
   afterEach(() => {

@@ -50,7 +50,7 @@ describe('SeedService (e2e)', () => {
       expect(client).toBeDefined();
       expect(client!.type).toBe('web');
       expect(client!.tokenEndpointAuthMethod).toBe('client_secret_basic');
-      expect(client!.clientSecretHash).not.toBeNull();
+      expect(client!.clientSecretEnc).not.toBeNull();
       expect(client!.requirePkce).toBe(true);
     });
 
@@ -59,7 +59,7 @@ describe('SeedService (e2e)', () => {
       expect(client).toBeDefined();
       expect(client!.type).toBe('spa');
       expect(client!.tokenEndpointAuthMethod).toBe('none');
-      expect(client!.clientSecretHash).toBeNull();
+      expect(client!.clientSecretEnc).toBeNull();
       expect(client!.redirectUris).toContain('https://oauth.pstmn.io/v1/callback');
     });
 

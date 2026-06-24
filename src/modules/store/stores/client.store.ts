@@ -1,18 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { ClientApplication } from '../../../common/entities/clientApplication.entity';
 import { Tenant } from '../../../common/entities/tenant.entity';
+import { ClientSecretCipher } from '../../../common/crypto/secret-cipher/client-secret-cipher.service';
 
 /**
  * Projection of {@link ClientApplication} returned by {@link ClientStore}.
  * Excludes tenant and branding fields not needed by the current consumers.
+ *
+ * `clientSecretEnc` is the AES-GCM-sealed secret (or null for public clients);
+ * it is opaque to consumers — verify via {@link ClientStore.validateSecret} or,
+ * for HMAC client assertions, {@link ClientStore.getDecryptedSecret}.
  */
 export interface StoredClient {
   id: string;
   clientId: string;
-  clientSecretHash: string | null;
+  clientSecretEnc: string | null;
   name: string;
   description: string | null;
   type: string;
@@ -20,6 +24,8 @@ export interface StoredClient {
   grantTypes: string[];
   responseTypes: string[];
   tokenEndpointAuthMethod: string;
+  jwksUri: string | null;
+  jwks: Record<string, unknown> | null;
   requirePkce: boolean;
   accessTokenLifetime: number;
   refreshTokenLifetime: number;
@@ -35,6 +41,8 @@ export interface ClientPatch {
   redirectUris?: string[];
   grantTypes?: string[];
   responseTypes?: string[];
+  jwksUri?: string | null;
+  jwks?: Record<string, unknown> | null;
   requirePkce?: boolean;
   status?: string;
   accessTokenLifetime?: number;
@@ -44,9 +52,9 @@ export interface ClientPatch {
 /**
  * Data-access facade for {@link ClientApplication} records.
  *
- * Hashes client secrets with bcrypt on write and never exposes plaintext
- * secrets; callers that need the plaintext value (registration, rotation)
- * must capture it at the call site before persistence.
+ * Seals client secrets with AES-256-GCM on write and never exposes the sealed
+ * blob's meaning to consumers; callers that need the plaintext at registration
+ * time must capture it at the call site before persistence.
  */
 @Injectable()
 export class ClientStore {
@@ -55,11 +63,12 @@ export class ClientStore {
     private readonly repo: Repository<ClientApplication>,
     @InjectRepository(Tenant)
     private readonly tenantRepo: Repository<Tenant>,
+    private readonly secretCipher: ClientSecretCipher,
   ) {}
 
   /**
    * Persist a new client application. When `clientSecret` is provided it is
-   * hashed with bcrypt and stored; the caller is responsible for returning
+   * sealed with AES-256-GCM and stored; the caller is responsible for returning
    * the plaintext to the end user before it is discarded.
    */
   async create(params: {
@@ -72,18 +81,20 @@ export class ClientStore {
     grantTypes: string[];
     responseTypes: string[];
     tokenEndpointAuthMethod: string;
+    jwksUri?: string | null;
+    jwks?: Record<string, unknown> | null;
     requirePkce?: boolean;
     tenant?: Tenant;
   }): Promise<StoredClient> {
-    const clientSecretHash = params.clientSecret
-      ? await bcrypt.hash(params.clientSecret, 12)
+    const clientSecretEnc = params.clientSecret
+      ? this.secretCipher.encrypt(params.clientSecret)
       : null;
 
     const tenant = params.tenant ?? await this.ensureDefaultTenant();
 
     const client = this.repo.create({
       clientId: params.clientId,
-      clientSecretHash,
+      clientSecretEnc,
       name: params.name,
       description: params.description ?? null,
       type: params.type,
@@ -91,6 +102,8 @@ export class ClientStore {
       grantTypes: params.grantTypes,
       responseTypes: params.responseTypes,
       tokenEndpointAuthMethod: params.tokenEndpointAuthMethod,
+      jwksUri: params.jwksUri ?? null,
+      jwks: params.jwks ?? null,
       requirePkce: params.requirePkce ?? false,
       tenant,
     });
@@ -132,7 +145,7 @@ export class ClientStore {
     if (!client) {
       throw new NotFoundException({ error: 'client_not_found' });
     }
-    client.clientSecretHash = await bcrypt.hash(newSecret, 12);
+    client.clientSecretEnc = this.secretCipher.encrypt(newSecret);
     client.clientSecretExpiry = null;
     const saved = await this.repo.save(client);
     return this.toStored(saved);
@@ -156,6 +169,8 @@ export class ClientStore {
     if (patch.redirectUris !== undefined) client.redirectUris = patch.redirectUris;
     if (patch.grantTypes !== undefined) client.grantTypes = patch.grantTypes;
     if (patch.responseTypes !== undefined) client.responseTypes = patch.responseTypes;
+    if (patch.jwksUri !== undefined) client.jwksUri = patch.jwksUri;
+    if (patch.jwks !== undefined) client.jwks = patch.jwks;
     if (patch.requirePkce !== undefined) client.requirePkce = patch.requirePkce;
     if (patch.status !== undefined) client.status = patch.status;
     if (patch.accessTokenLifetime !== undefined)
@@ -181,15 +196,26 @@ export class ClientStore {
   }
 
   /**
-   * Compare a plaintext `secret` against the client's stored hash.
-   * Returns false when the client has no secret (public client).
+   * Compare a plaintext `secret` against the client's sealed secret in constant
+   * time. Returns false when the client has no secret (public client).
    */
-  async validateSecret(
-    client: StoredClient,
-    secret: string,
-  ): Promise<boolean> {
-    if (!client.clientSecretHash) return false;
-    return bcrypt.compare(secret, client.clientSecretHash);
+  validateSecret(client: StoredClient, secret: string): boolean {
+    if (!client.clientSecretEnc) return false;
+    return this.secretCipher.verify(secret, client.clientSecretEnc);
+  }
+
+  /**
+   * Recover a confidential client's plaintext secret, used only as the HMAC key
+   * for verifying `client_secret_jwt` assertions. Returns null for public
+   * clients or when the sealed value cannot be decrypted.
+   */
+  getDecryptedSecret(client: StoredClient): string | null {
+    if (!client.clientSecretEnc) return null;
+    try {
+      return this.secretCipher.decrypt(client.clientSecretEnc);
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -216,7 +242,7 @@ export class ClientStore {
     return {
       id: entity.id,
       clientId: entity.clientId,
-      clientSecretHash: entity.clientSecretHash,
+      clientSecretEnc: entity.clientSecretEnc,
       name: entity.name,
       description: entity.description,
       type: entity.type,
@@ -224,6 +250,8 @@ export class ClientStore {
       grantTypes: entity.grantTypes,
       responseTypes: entity.responseTypes,
       tokenEndpointAuthMethod: entity.tokenEndpointAuthMethod,
+      jwksUri: entity.jwksUri,
+      jwks: entity.jwks,
       requirePkce: entity.requirePkce,
       accessTokenLifetime: entity.accessTokenLifetime,
       refreshTokenLifetime: entity.refreshTokenLifetime,

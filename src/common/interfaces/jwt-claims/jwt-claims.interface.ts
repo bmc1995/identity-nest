@@ -10,6 +10,7 @@ export interface IdTokenClaims extends JWTPayload {
   auth_time?: number;
   nonce?: string;
   at_hash?: string;
+  c_hash?: string;
   acr?: string;
   amr?: string[];
 

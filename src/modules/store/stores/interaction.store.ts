@@ -36,11 +36,14 @@ export interface StoredInteraction {
     client_id: string;
     redirect_uri: string;
     response_type: string;
+    response_mode?: string;
     scope: string;
     state?: string;
     nonce?: string;
-    code_challenge: string;
-    code_challenge_method: string;
+    // PKCE applies only to flows that return an authorization code; implicit
+    // flows omit the challenge.
+    code_challenge?: string;
+    code_challenge_method?: string;
   };
   returnTo: string | null;
   userId: string | null;

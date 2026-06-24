@@ -41,11 +41,23 @@ export class ClientApplication {
   @Column({ type: 'varchar', length: 255 })
   clientId!: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  clientSecretHash!: string | null;
+  // Client secret sealed with AES-256-GCM at rest (see ClientSecretCipher).
+  // Reversible — not a one-way hash — because client_secret_jwt assertions
+  // require the raw secret as the HMAC verification key.
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  clientSecretEnc!: string | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   clientSecretExpiry!: Date | null;
+
+  // Per-client JWKS for private_key_jwt assertion verification. Either an
+  // inline JWK Set (`jwks`) or a URL the server fetches it from (`jwksUri`);
+  // RFC 7591 forbids supplying both.
+  @Column({ type: 'text', nullable: true })
+  jwksUri!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  jwks!: Record<string, unknown> | null;
 
   // Redirect URIs (CORS whitelist)
   @Column({ type: 'text', array: true })

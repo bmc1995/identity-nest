@@ -61,4 +61,19 @@ export class TokenRequestDto {
   @IsOptional()
   @IsString()
   client_secret?: string;
+
+  /**
+   * Client-assertion type for JWT client authentication (client_secret_jwt /
+   * private_key_jwt). Must be the jwt-bearer URN when present.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  client_assertion_type?: string;
+
+  /** Signed JWT proving client identity (client_secret_jwt / private_key_jwt). */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  client_assertion?: string;
 }

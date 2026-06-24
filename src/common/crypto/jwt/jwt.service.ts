@@ -6,7 +6,7 @@ import {
   AccessTokenClaims,
   RefreshTokenClaims,
 } from '../../interfaces/jwt-claims/jwt-claims.interface';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 
 @Injectable()
 export class JwtService {
@@ -102,6 +102,23 @@ export class JwtService {
       .setIssuedAt(now)
       .setExpirationTime(now + (opts.ttlSeconds ?? thirtyDays))
       .sign(key);
+  }
+
+  /**
+   * Compute an OIDC token hash (`at_hash` / `c_hash`, OpenID Connect Core
+   * §3.3.2.11): the base64url-encoded left-most half of the digest of the
+   * token's ASCII value, where the digest is chosen by the ID token's signing
+   * algorithm (RS256/ES256/PS256 → SHA-256, *384 → SHA-384, *512 → SHA-512).
+   */
+  async tokenHash(value: string): Promise<string> {
+    const { alg } = await this.jwksService.getActiveSigningKey();
+    const sha = alg.endsWith('512')
+      ? 'sha512'
+      : alg.endsWith('384')
+        ? 'sha384'
+        : 'sha256';
+    const digest = createHash(sha).update(value, 'ascii').digest();
+    return digest.subarray(0, digest.length / 2).toString('base64url');
   }
 
   /** Verify any JWT signed by this service, looking up the key by kid from the header */

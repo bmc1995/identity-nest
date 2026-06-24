@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PkceService } from './services/pkce/pkce.service';
 import { InteractionViewService } from './services/interaction-view/interaction-view.service';
 import { ClientAuthenticatorService } from './services/client-authenticator/client-authenticator.service';
+import { ClientAssertionReplayService } from './services/client-assertion-replay/client-assertion-replay.service';
 import { TokenDenylistService } from './services/token-denylist/token-denylist.service';
 import { OidcService } from './oidc.service';
 import { AuthorizeController } from './controllers/authorize.controller';
@@ -36,6 +37,7 @@ import { ClientModule } from '../client/client.module';
     PkceService,
     InteractionViewService,
     ClientAuthenticatorService,
+    ClientAssertionReplayService,
     TokenDenylistService,
     OidcService,
     JwksService,

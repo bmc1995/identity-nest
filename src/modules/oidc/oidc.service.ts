@@ -8,6 +8,11 @@ import { ClientStore } from '../store/stores/client.store';
 import { AuthorizationCodeStore } from '../store/stores/authorization-code.store';
 import { GrantStore } from '../store/stores/grant.store';
 import { StoredInteraction } from '../store/stores/interaction.store';
+import {
+  defaultResponseMode,
+  parseResponseType,
+  ResponseMode,
+} from './utils/response-type';
 
 @Injectable()
 export class OidcService {
@@ -24,8 +29,14 @@ export class OidcService {
   ) {}
 
   /**
-   * Complete the consent step: create a grant, issue an authorization code,
-   * and return the redirect URL.
+   * Complete the consent step: create a grant, mint the artifacts the client's
+   * `response_type` calls for (authorization code, access token, and/or ID
+   * token), and return the redirect URL with those artifacts placed in the
+   * query string or fragment per the resolved `response_mode`.
+   *
+   * Covers the authorization code, implicit, hybrid, and `none` flows. Implicit
+   * and hybrid responses carry tokens directly here; the code flow defers token
+   * minting to {@link exchangeCode} at the token endpoint.
    */
   async completeConsent(interaction: StoredInteraction): Promise<string> {
     const { params, userId } = interaction;
@@ -34,33 +45,109 @@ export class OidcService {
       throw new Error('Interaction has no authenticated user');
     }
 
-    // Create or update the grant
+    const parsed = parseResponseType(params.response_type);
+    if (!parsed) {
+      // Authorize already validated this; a mismatch indicates a bug upstream.
+      throw new Error(`Unsupported response_type: ${params.response_type}`);
+    }
+    const mode: ResponseMode =
+      params.response_mode === 'query' || params.response_mode === 'fragment'
+        ? params.response_mode
+        : defaultResponseMode(parsed);
+
+    // Create or update the grant recording the user's consent.
     const grant = await this.grantStore.findOrCreate(
       userId,
       params.client_id,
       params.scope,
     );
 
-    // Issue authorization code
-    const authCode = await this.authorizationCodeStore.save({
-      clientId: params.client_id,
-      userId,
-      grantId: grant.id,
-      redirectUri: params.redirect_uri,
-      scope: params.scope,
-      nonce: params.nonce,
-      codeChallenge: params.code_challenge,
-      codeChallengeMethod: params.code_challenge_method,
-    });
+    const out: Record<string, string> = {};
+    if (params.state) out.state = params.state;
 
-    // Build redirect URL
-    const redirectUri = new URL(params.redirect_uri);
-    redirectUri.searchParams.set('code', authCode.code);
-    if (params.state) {
-      redirectUri.searchParams.set('state', params.state);
+    // Access/ID tokens (implicit + hybrid) need the client and user records;
+    // the pure code flow does not, so only load them when required.
+    const needsTokens = parsed.hasToken || parsed.hasIdToken;
+    const client = needsTokens
+      ? await this.clientStore.findByClientId(params.client_id)
+      : null;
+    const user = needsTokens ? await this.users.findById(userId) : null;
+    if (needsTokens && (!client || !user)) {
+      this.logger.error('Missing client or user while minting implicit/hybrid tokens');
+      throw new Error('Cannot mint tokens: client or user not found');
     }
 
-    return redirectUri.toString();
+    let codeValue: string | undefined;
+    if (parsed.hasCode) {
+      const authCode = await this.authorizationCodeStore.save({
+        clientId: params.client_id,
+        userId,
+        grantId: grant.id,
+        redirectUri: params.redirect_uri,
+        scope: params.scope,
+        nonce: params.nonce,
+        codeChallenge: params.code_challenge ?? '',
+        codeChallengeMethod: params.code_challenge_method ?? '',
+      });
+      codeValue = authCode.code;
+      out.code = codeValue;
+    }
+
+    let accessTokenValue: string | undefined;
+    if (parsed.hasToken && client) {
+      accessTokenValue = await this.jwtService.signAccessToken(
+        userId,
+        params.client_id,
+        params.scope,
+        { ttlSeconds: client.accessTokenLifetime },
+      );
+      out.access_token = accessTokenValue;
+      out.token_type = 'Bearer';
+      out.expires_in = String(client.accessTokenLifetime);
+      out.scope = params.scope;
+    }
+
+    if (parsed.hasIdToken && user) {
+      // Hash bindings tie the ID token to the code/access token delivered in the
+      // same response (OIDC Core §3.3.2.11).
+      const [cHash, atHash] = await Promise.all([
+        codeValue ? this.jwtService.tokenHash(codeValue) : undefined,
+        accessTokenValue ? this.jwtService.tokenHash(accessTokenValue) : undefined,
+      ]);
+      out.id_token = await this.jwtService.signIdToken(userId, params.client_id, {
+        nonce: params.nonce ?? undefined,
+        auth_time: Math.floor(Date.now() / 1000),
+        email: user.email,
+        email_verified: user.emailVerified,
+        preferred_username: user.nickname ?? user.email,
+        ...(cHash ? { c_hash: cHash } : {}),
+        ...(atHash ? { at_hash: atHash } : {}),
+      });
+    }
+
+    return this.buildAuthorizationRedirect(params.redirect_uri, out, mode);
+  }
+
+  /**
+   * Assemble the authorization response redirect, placing `params` in the query
+   * string (`query` mode) or the URL fragment (`fragment` mode, used by token-
+   * bearing responses).
+   */
+  private buildAuthorizationRedirect(
+    redirectUri: string,
+    params: Record<string, string>,
+    mode: ResponseMode,
+  ): string {
+    const url = new URL(redirectUri);
+    if (mode === 'fragment') {
+      const fragment = new URLSearchParams(params);
+      url.hash = fragment.toString();
+    } else {
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+    }
+    return url.toString();
   }
 
   /**

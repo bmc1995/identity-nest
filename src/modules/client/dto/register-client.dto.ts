@@ -5,8 +5,10 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -19,16 +21,31 @@ export type ClientType = (typeof CLIENT_TYPES)[number];
 export const GRANT_TYPES = [
   'authorization_code',
   'refresh_token',
+  'implicit',
   'client_credentials',
 ] as const;
 
-/** OAuth response types currently supported by the authorization server. */
-export const RESPONSE_TYPES = ['code', 'id_token', 'token'] as const;
+/**
+ * OAuth/OIDC response types supported by the authorization server: the code
+ * flow, the implicit flow (`id_token`, `id_token token`), the hybrid flow
+ * (`code id_token`, `code token`, `code id_token token`), and `none`.
+ */
+export const RESPONSE_TYPES = [
+  'code',
+  'id_token',
+  'id_token token',
+  'code id_token',
+  'code token',
+  'code id_token token',
+  'none',
+] as const;
 
 /** Supported token-endpoint client authentication methods. */
 export const AUTH_METHODS = [
   'client_secret_basic',
   'client_secret_post',
+  'client_secret_jwt',
+  'private_key_jwt',
   'none',
 ] as const;
 
@@ -121,6 +138,30 @@ export class RegisterClientDto {
   @IsOptional()
   @IsIn(AUTH_METHODS)
   tokenEndpointAuthMethod?: (typeof AUTH_METHODS)[number];
+
+  /**
+   * URL of the client's JWK Set, used to verify `private_key_jwt` assertions.
+   * Mutually exclusive with `jwks`.
+   */
+  @ApiPropertyOptional({
+    description: "URL of the client's JWK Set (private_key_jwt).",
+  })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  jwksUri?: string;
+
+  /**
+   * Inline JWK Set for verifying `private_key_jwt` assertions. Mutually
+   * exclusive with `jwksUri`.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: "Inline JWK Set (private_key_jwt).",
+  })
+  @IsOptional()
+  @IsObject()
+  jwks?: Record<string, unknown>;
 
   /**
    * Whether to require PKCE for this client. When the auth method is `none`

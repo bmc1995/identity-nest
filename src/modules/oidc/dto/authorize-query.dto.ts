@@ -36,14 +36,27 @@ export class AuthorizeQueryDto {
   @IsString()
   nonce?: string;
 
-  @ApiProperty()
+  // PKCE applies only to flows that return an authorization code; the controller
+  // requires it for those. Optional here so implicit/none requests are not
+  // rejected by the global ValidationPipe before that per-flow check runs.
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  code_challenge!: string;
+  code_challenge?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code_challenge_method?: string;
+
+  /**
+   * How the authorization response is returned to the client: `query` or
+   * `fragment`. Defaults per response_type when omitted.
+   */
+  @ApiPropertyOptional({ enum: ['query', 'fragment'] })
+  @IsOptional()
+  @IsString()
+  response_mode?: string;
 
   // The following fields are defined by the OIDC core spec. We do not currently
   // act on them but accept them here so that compliant clients are not rejected

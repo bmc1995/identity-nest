@@ -28,20 +28,21 @@ export class DiscoveryController {
       }),
       response_types_supported: [
         'code', // Authorization Code Flow
-        'id_token', //TODO // Implicit Flow
-        'id_token token', //TODO // Implicit Flow
+        'id_token', // Implicit Flow
+        'id_token token', // Implicit Flow
+        'code id_token', // Hybrid Flow
+        'code token', // Hybrid Flow
+        'code id_token token', // Hybrid Flow
         'none',
-        // Unsupported — the authorize endpoint only implements the code flow.
-        // Implicit/hybrid response types not currently offered:
-        // 'code token', //Hybrid Flow
-        // 'code id_token', //Hybrid Flow
-        // 'code id_token token', //TODO // Hybrid Flow
       ],
-      response_modes_supported: ['query'],
+      response_modes_supported: ['query', 'fragment'],
       grant_types_supported: [
         'authorization_code',
         'refresh_token',
-        // Unsupported — the token endpoint does not implement these grants:
+        // implicit covers the tokens returned directly from /authorize by the
+        // implicit and hybrid response types.
+        'implicit',
+        // Unsupported — the token endpoint does not implement this grant:
         // 'client_credentials',
       ],
       subject_types_supported: ['public'],
@@ -52,24 +53,27 @@ export class DiscoveryController {
         // 'ES256',
       ],
       // `none` covers public clients that authenticate with PKCE alone — the
-      // client authenticator admits clients that have no stored secret hash.
+      // client authenticator admits clients that have no stored secret.
       token_endpoint_auth_methods_supported: [
         'client_secret_basic',
         'client_secret_post',
+        'client_secret_jwt',
+        'private_key_jwt',
         'none',
-        // Unsupported — no JWT client-assertion verification is implemented:
-        // 'client_secret_jwt',  // would also need token_endpoint_auth_signing_alg_values_supported
-        // 'private_key_jwt',    // would also need per-client JWKS resolution
       ],
-      // Only meaningful once client_secret_jwt / private_key_jwt are enabled:
-      // token_endpoint_auth_signing_alg_values_supported: ['RS256'],
+      // Algorithms accepted on client-assertion JWTs: HS256 for client_secret_jwt
+      // (HMAC keyed by the client secret), RS256/ES256 for private_key_jwt.
+      token_endpoint_auth_signing_alg_values_supported: [
+        'RS256',
+        'ES256',
+        'HS256',
+      ],
       revocation_endpoint_auth_methods_supported: [
         'client_secret_basic',
         'client_secret_post',
+        'client_secret_jwt',
+        'private_key_jwt',
         'none',
-        // Unsupported (see token_endpoint_auth_methods_supported):
-        // 'client_secret_jwt',
-        // 'private_key_jwt',
       ],
       scopes_supported: ['openid', 'profile', 'email'],
       claims_supported: [

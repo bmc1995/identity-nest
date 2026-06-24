@@ -120,9 +120,61 @@ describe('DynamicClientRegistrationService', () => {
     await expect(
       service.register({
         redirect_uris: ['https://app.example.com/cb'],
-        token_endpoint_auth_method: 'private_key_jwt',
+        token_endpoint_auth_method: 'tls_client_auth',
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('passes a private_key_jwt client and its jwks_uri through to ClientService', async () => {
+    register.mockResolvedValue(
+      baseClient({
+        tokenEndpointAuthMethod: 'private_key_jwt',
+        hasSecret: false,
+        clientSecret: null,
+      }),
+    );
+
+    const res = await service.register({
+      redirect_uris: ['https://app.example.com/cb'],
+      token_endpoint_auth_method: 'private_key_jwt',
+      jwks_uri: 'https://app.example.com/jwks.json',
+    });
+
+    expect(register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tokenEndpointAuthMethod: 'private_key_jwt',
+        jwksUri: 'https://app.example.com/jwks.json',
+      }),
+    );
+    expect(res.jwks_uri).toBe('https://app.example.com/jwks.json');
+    expect(res.client_secret).toBeUndefined();
+  });
+
+  it('rejects supplying both jwks and jwks_uri', async () => {
+    await expect(
+      service.register({
+        redirect_uris: ['https://app.example.com/cb'],
+        token_endpoint_auth_method: 'private_key_jwt',
+        jwks_uri: 'https://app.example.com/jwks.json',
+        jwks: { keys: [] },
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it('normalizes hybrid response_type token order before validating', async () => {
+    register.mockResolvedValue(
+      baseClient({ responseTypes: ['code id_token'] }),
+    );
+
+    await service.register({
+      redirect_uris: ['https://app.example.com/cb'],
+      response_types: ['id_token code'],
+    });
+
+    expect(register).toHaveBeenCalledWith(
+      expect.objectContaining({ responseTypes: ['code id_token'] }),
+    );
   });
 
   it('requires at least one redirect_uri', async () => {

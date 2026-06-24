@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { ClientStore, StoredClient } from '../store/stores/client.store';
 import { RegisterClientDto } from './dto/register-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -78,6 +78,23 @@ export class ClientService {
       });
     }
 
+    // private_key_jwt clients authenticate with an asymmetric key, so they must
+    // register a JWK Set — inline or by URL, but not both (RFC 7591 §2).
+    if (tokenEndpointAuthMethod === 'private_key_jwt') {
+      if (dto.jwks && dto.jwksUri) {
+        throw new BadRequestException({
+          error: 'invalid_client_metadata',
+          error_description: 'Provide only one of jwks or jwksUri',
+        });
+      }
+      if (!dto.jwks && !dto.jwksUri) {
+        throw new BadRequestException({
+          error: 'invalid_client_metadata',
+          error_description: 'private_key_jwt requires jwks or jwksUri',
+        });
+      }
+    }
+
     const requirePkce = isPublic ? true : (dto.requirePkce ?? true);
     const grantTypes = dto.grantTypes ?? this.defaultGrantTypes(dto.type);
     const responseTypes = dto.responseTypes ?? ['code'];
@@ -85,7 +102,10 @@ export class ClientService {
     this.validateRedirectUris(dto.redirectUris, dto.type);
 
     const clientId = this.generateClientId();
-    const clientSecret = isPublic ? undefined : this.generateClientSecret();
+    // Only secret-bearing methods get a generated client_secret. private_key_jwt
+    // (asymmetric) and none (public/PKCE) authenticate without one.
+    const usesSecret = tokenEndpointAuthMethod.startsWith('client_secret_');
+    const clientSecret = usesSecret ? this.generateClientSecret() : undefined;
 
     const stored = await this.clientStore.create({
       clientId,
@@ -97,6 +117,8 @@ export class ClientService {
       grantTypes,
       responseTypes,
       tokenEndpointAuthMethod,
+      jwksUri: dto.jwksUri ?? null,
+      jwks: dto.jwks ?? null,
       requirePkce,
     });
 
@@ -264,7 +286,7 @@ export class ClientService {
 
   /** Generate a 32-hex-char opaque `client_id`. */
   private generateClientId(): string {
-    return randomBytes(16).toString('hex');
+    return randomUUID()
   }
 
   /** Generate a 256-bit base64url-encoded `client_secret`. */
@@ -288,7 +310,7 @@ export class ClientService {
       accessTokenLifetime: stored.accessTokenLifetime,
       refreshTokenLifetime: stored.refreshTokenLifetime,
       status: stored.status,
-      hasSecret: stored.clientSecretHash !== null,
+      hasSecret: stored.clientSecretEnc !== null,
       createdAt: stored.createdAt,
       updatedAt: stored.updatedAt,
     };
