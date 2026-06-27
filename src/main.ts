@@ -33,12 +33,12 @@ async function bootstrap() {
       );
   }
 
-  const corsOrigins = (
-    process.env.CORS_ORIGINS?.split(',')?.map((origin) => origin.trim()).filter(Boolean) ??
-    ["http://localhost:8080", "http://0.0.0.0:5173", "http://localhost:5173", "https://127.0.0.1:5173"]
-  )
-  // Pass the allowlist as `origin`; calling enableCors with a bare array makes
-  // the cors lib read a missing `.origin` and fall back to reflecting any origin.
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',')
+    ?.map((origin) => origin.trim())
+    .filter(Boolean)
+    if(!corsOrigins.length) {
+      throw new Error("CORS_ORIGINS undefined.")
+    }
   app.enableCors(corsOrigins);
   app.use(cookieParser());
   app.use(json());
